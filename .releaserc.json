@@ -8,7 +8,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "sed -i \"s/^version = .*/version = '${nextRelease.version}'/\" build.gradle && sed -i \"s/<version>[0-9]*\\.[0-9]*\\.[0-9]*<\\/version>/<version>${nextRelease.version}<\\/version>/\" pom.xml",
-        "publishCmd": "./gradlew publish --no-daemon"
+        "publishCmd": "./gradlew publish --no-daemon && curl -X POST -u \"$OSSRH_USERNAME:$OSSRH_PASSWORD\" https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/co.lettermint"
       }
     ],
     "@semantic-release/github",
