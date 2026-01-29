@@ -1,0 +1,23 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "sed -i \"s/^version = .*/version = '${nextRelease.version}'/\" build.gradle && sed -i \"s/<version>[0-9]*\\.[0-9]*\\.[0-9]*<\\/version>/<version>${nextRelease.version}<\\/version>/\" pom.xml",
+        "publishCmd": "./gradlew publish --no-daemon"
+      }
+    ],
+    "@semantic-release/github",
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "build.gradle", "pom.xml"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
+}

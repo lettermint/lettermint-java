@@ -1,0 +1,137 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+}
+
+group = 'co.lettermint'
+version = '0.0.1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // HTTP Client
+    implementation 'com.squareup.okhttp3:okhttp:5.3.2'
+
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.0'
+
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:5.3.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Generate BuildInfo.java with version from Gradle
+def generatedSrcDir = layout.buildDirectory.dir('generated/sources/buildinfo/java/main')
+
+tasks.register('generateBuildInfo') {
+    def outputDir = generatedSrcDir
+    outputs.dir(outputDir)
+    doLast {
+        def dir = outputDir.get().asFile
+        dir.mkdirs()
+        def packageDir = new File(dir, 'co/lettermint')
+        packageDir.mkdirs()
+        new File(packageDir, 'BuildInfo.java').text = """package co.lettermint;
+
+/**
+ * Auto-generated build information.
+ */
+public final class BuildInfo {
+    public static final String VERSION = "${project.version}";
+
+    private BuildInfo() {}
+}
+"""
+    }
+}
+
+sourceSets.main.java.srcDir(generatedSrcDir)
+compileJava.dependsOn(generateBuildInfo)
+sourcesJar.dependsOn(generateBuildInfo)
+
+jar {
+    manifest {
+        attributes(
+            'Implementation-Title': 'Lettermint Java SDK',
+            'Implementation-Version': version
+        )
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+
+            pom {
+                name = 'Lettermint Java SDK'
+                description = 'Official Java SDK for the Lettermint API'
+                url = 'https://github.com/lettermint/lettermint-java'
+
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+
+                developers {
+                    developer {
+                        name = 'Lettermint'
+                        email = 'support@lettermint.co'
+                        organization = 'Lettermint'
+                        organizationUrl = 'https://lettermint.co'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/lettermint/lettermint-java.git'
+                    developerConnection = 'scm:git:ssh://github.com:lettermint/lettermint-java.git'
+                    url = 'https://github.com/lettermint/lettermint-java/tree/main'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'sonatypeCentral'
+            url = uri('https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/')
+            credentials {
+                username = System.getenv('OSSRH_USERNAME') ?: ''
+                password = System.getenv('OSSRH_PASSWORD') ?: ''
+            }
+        }
+    }
+}
+
+signing {
+    // Uses ORG_GRADLE_PROJECT_signingKey, signingKeyId, signingPassword from env
+    def signingKey = findProperty('signingKey')
+    def signingKeyId = findProperty('signingKeyId')
+    def signingPassword = findProperty('signingPassword') ?: ''
+
+    if (signingKey) {
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    }
+
+    sign publishing.publications.maven
+}
+
+tasks.withType(Sign) {
+    onlyIf { findProperty('signingKey') != null }
+}
