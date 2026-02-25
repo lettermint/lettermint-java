@@ -21,7 +21,7 @@ public class EmailEndpoint extends Endpoint {
     private String text;
     private Map<String, String> headers;
     private List<Attachment> attachments;
-    private String routeId;
+    private String route;
     private Map<String, Object> metadata;
     private List<String> tags;
     private String idempotencyKey;
@@ -45,7 +45,7 @@ public class EmailEndpoint extends Endpoint {
         this.text = null;
         this.headers = new LinkedHashMap<>();
         this.attachments = new ArrayList<>();
-        this.routeId = null;
+        this.route = null;
         this.metadata = new LinkedHashMap<>();
         this.tags = new ArrayList<>();
         this.idempotencyKey = null;
@@ -156,10 +156,10 @@ public class EmailEndpoint extends Endpoint {
     }
 
     /**
-     * Set the route ID for sending through a specific route.
+     * Set the route slug for sending through a specific route.
      */
-    public EmailEndpoint route(String routeId) {
-        this.routeId = routeId;
+    public EmailEndpoint route(String route) {
+        this.route = route;
         return this;
     }
 
@@ -257,8 +257,8 @@ public class EmailEndpoint extends Endpoint {
             payload.put("attachments", attachments);
         }
 
-        if (routeId != null) {
-            payload.put("route_id", routeId);
+        if (route != null) {
+            payload.put("route", route);
         }
 
         if (!metadata.isEmpty()) {

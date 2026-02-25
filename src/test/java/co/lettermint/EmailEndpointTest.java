@@ -81,7 +81,7 @@ class EmailEndpointTest {
                 .headers(headers)
                 .attach("document.pdf", "base64content")
                 .attach("logo.png", "base64logo", "logo-cid")
-                .route("route_123")
+                .route("route-slug-123")
                 .metadata(metadata)
                 .tag("welcome", "onboarding")
                 .idempotencyKey("unique-key-123")
@@ -101,7 +101,7 @@ class EmailEndpointTest {
         assertTrue(body.contains("\"subject\":\"Welcome!\""));
         assertTrue(body.contains("\"html\":\"<p>Hello <b>World</b></p>\""));
         assertTrue(body.contains("\"text\":\"Hello World\""));
-        assertTrue(body.contains("\"route_id\":\"route_123\""));
+        assertTrue(body.contains("\"route\":\"route-slug-123\""));
         assertTrue(body.contains("\"tags\":[\"welcome\",\"onboarding\"]"));
     }
 
