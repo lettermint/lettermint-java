@@ -156,7 +156,7 @@ public class EmailEndpoint extends Endpoint {
     }
 
     /**
-     * Set the route ID for sending through a specific route.
+     * Set the route slug for sending through a specific route.
      */
     public EmailEndpoint route(String route) {
         this.route = route;
