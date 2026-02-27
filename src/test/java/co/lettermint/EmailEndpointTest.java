@@ -97,7 +97,7 @@ class EmailEndpointTest {
         assertTrue(body.contains("\"to\":[\"recipient1@example.com\",\"recipient2@example.com\"]"));
         assertTrue(body.contains("\"cc\":[\"cc@example.com\"]"));
         assertTrue(body.contains("\"bcc\":[\"bcc@example.com\"]"));
-        assertTrue(body.contains("\"reply_to\":\"reply@example.com\""));
+        assertTrue(body.contains("\"reply_to\":[\"reply@example.com\"]"));
         assertTrue(body.contains("\"subject\":\"Welcome!\""));
         assertTrue(body.contains("\"html\":\"<p>Hello <b>World</b></p>\""));
         assertTrue(body.contains("\"text\":\"Hello World\""));
@@ -177,6 +177,46 @@ class EmailEndpointTest {
 
         assertTrue(body.contains("\"X-First\":\"value1\""));
         assertTrue(body.contains("\"X-Second\":\"value2\""));
+    }
+
+    @Test
+    void testReplyToSingleString() throws Exception {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("{\"message_id\": \"msg_123\", \"status\": \"queued\"}")
+                .setHeader("Content-Type", "application/json"));
+
+        lettermint.email()
+                .from("sender@example.com")
+                .to("recipient@example.com")
+                .subject("Test")
+                .text("Test")
+                .replyTo("reply@example.com")
+                .send();
+
+        RecordedRequest request = mockWebServer.takeRequest();
+        String body = request.getBody().readUtf8();
+
+        assertTrue(body.contains("\"reply_to\":[\"reply@example.com\"]"));
+    }
+
+    @Test
+    void testReplyToMultipleAddresses() throws Exception {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("{\"message_id\": \"msg_123\", \"status\": \"queued\"}")
+                .setHeader("Content-Type", "application/json"));
+
+        lettermint.email()
+                .from("sender@example.com")
+                .to("recipient@example.com")
+                .subject("Test")
+                .text("Test")
+                .replyTo("reply1@example.com", "reply2@example.com")
+                .send();
+
+        RecordedRequest request = mockWebServer.takeRequest();
+        String body = request.getBody().readUtf8();
+
+        assertTrue(body.contains("\"reply_to\":[\"reply1@example.com\",\"reply2@example.com\"]"));
     }
 
     @Test
