@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/lettermint/lettermint-java/compare/v1.0.2...v1.1.0) (2026-02-27)
+
+
+### Features
+
+* support multiple reply-to addresses in EmailEndpoint ([2787307](https://github.com/lettermint/lettermint-java/commit/2787307d9d8c89216dc5914a0781929f4fd5a08f))
+
 ## [1.0.2](https://github.com/lettermint/lettermint-java/compare/v1.0.1...v1.0.2) (2026-02-25)
 
 
