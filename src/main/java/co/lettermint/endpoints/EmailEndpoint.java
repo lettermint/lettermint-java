@@ -15,7 +15,7 @@ public class EmailEndpoint extends Endpoint {
     private List<String> to;
     private List<String> cc;
     private List<String> bcc;
-    private String replyTo;
+    private List<String> replyTo;
     private String subject;
     private String html;
     private String text;
@@ -39,7 +39,7 @@ public class EmailEndpoint extends Endpoint {
         this.to = new ArrayList<>();
         this.cc = new ArrayList<>();
         this.bcc = new ArrayList<>();
-        this.replyTo = null;
+        this.replyTo = new ArrayList<>();
         this.subject = null;
         this.html = null;
         this.text = null;
@@ -85,10 +85,10 @@ public class EmailEndpoint extends Endpoint {
     }
 
     /**
-     * Set the reply-to email address.
+     * Set reply-to email addresses. Replaces any existing reply-to addresses.
      */
-    public EmailEndpoint replyTo(String replyTo) {
-        this.replyTo = replyTo;
+    public EmailEndpoint replyTo(String... emails) {
+        this.replyTo = new ArrayList<>(Arrays.asList(emails));
         return this;
     }
 
@@ -233,7 +233,7 @@ public class EmailEndpoint extends Endpoint {
             payload.put("bcc", bcc);
         }
 
-        if (replyTo != null) {
+        if (!replyTo.isEmpty()) {
             payload.put("reply_to", replyTo);
         }
 
