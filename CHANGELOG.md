@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/lettermint/lettermint-java/compare/v1.1.0...v1.1.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* use okhttp-jvm artifact to resolve ClassNotFoundException for Maven consumers ([10f0588](https://github.com/lettermint/lettermint-java/commit/10f058870ceaf64b2fca4d5e847864b2a53e72b5))
+
 # [1.1.0](https://github.com/lettermint/lettermint-java/compare/v1.0.2...v1.1.0) (2026-02-27)
 
 
