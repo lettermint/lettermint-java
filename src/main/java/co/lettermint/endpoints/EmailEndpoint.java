@@ -151,7 +151,20 @@ public class EmailEndpoint extends Endpoint {
      * @param contentId Content-ID for inline attachments (e.g., for embedding images)
      */
     public EmailEndpoint attach(String filename, String content, String contentId) {
-        this.attachments.add(new Attachment(filename, content, contentId));
+        this.attachments.add(new Attachment(filename, content, contentId, null));
+        return this;
+    }
+
+    /**
+     * Attach an inline file to the email and specify the {@code Content-Type}
+     *
+     * @param filename    The filename to use for the attachment
+     * @param content     Base64-encoded file content
+     * @param contentId   Content-ID for inline attachments (e.g., for embedding images)
+     * @param contentType MIME type of the attachment (e.g., "image/png")
+     */
+    public EmailEndpoint attach(String filename, String content, String contentId, String contentType) {
+        this.attachments.add(new Attachment(filename, content, contentId, contentType));
         return this;
     }
 

@@ -18,14 +18,18 @@ public class Attachment {
     @JsonProperty("content_id")
     private final String contentId;
 
+    @JsonProperty("content_type")
+    private final String contentType;
+
     public Attachment(String filename, String content) {
-        this(filename, content, null);
+        this(filename, content, null, null);
     }
 
-    public Attachment(String filename, String content, String contentId) {
+    public Attachment(String filename, String content, String contentId, String contentType) {
         this.filename = filename;
         this.content = content;
         this.contentId = contentId;
+        this.contentType = contentType;
     }
 
     public String getFilename() {
@@ -38,5 +42,9 @@ public class Attachment {
 
     public String getContentId() {
         return contentId;
+    }
+
+    public String getContentType() {
+        return contentType;
     }
 }
