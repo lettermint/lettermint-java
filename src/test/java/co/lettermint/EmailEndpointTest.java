@@ -81,6 +81,7 @@ class EmailEndpointTest {
                 .headers(headers)
                 .attach("document.pdf", "base64content")
                 .attach("logo.png", "base64logo", "logo-cid")
+                .attach("invite.ics", "base64icalFile", null, "text/calendar; method=REQUEST")
                 .route("route-slug-123")
                 .metadata(metadata)
                 .tag("welcome", "onboarding")
@@ -103,6 +104,9 @@ class EmailEndpointTest {
         assertTrue(body.contains("\"text\":\"Hello World\""));
         assertTrue(body.contains("\"route\":\"route-slug-123\""));
         assertTrue(body.contains("\"tags\":[\"welcome\",\"onboarding\"]"));
+        assertTrue(body.contains("{\"filename\":\"document.pdf\",\"content\":\"base64content\"}"));
+        assertTrue(body.contains("{\"filename\":\"logo.png\",\"content\":\"base64logo\",\"content_id\":\"logo-cid\"}"));
+        assertTrue(body.contains("{\"filename\":\"invite.ics\",\"content\":\"base64icalFile\",\"content_type\":\"text/calendar; method=REQUEST\"}"));
     }
 
     @Test
