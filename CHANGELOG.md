@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/lettermint/lettermint-java/compare/v1.1.1...v1.2.0) (2026-03-27)
+
+
+### Bug Fixes
+
+* downgrade okhttp for compatibility ([ad246c9](https://github.com/lettermint/lettermint-java/commit/ad246c9ff0f2e7fad9b370d450d1bde2efb6b958))
+
+
+### Features
+
+* add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
+
 ## [1.1.1](https://github.com/lettermint/lettermint-java/compare/v1.1.0...v1.1.1) (2026-03-18)
 
 
