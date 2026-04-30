@@ -23,7 +23,7 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
     // JSON Processing
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.3'
 
     // Testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
