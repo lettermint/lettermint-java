@@ -1,3 +1,16 @@
+# [2.0.0](https://github.com/lettermint/lettermint-java/compare/v1.2.0...v2.0.0) (2026-05-11)
+
+
+### Features
+
+* add Team API endpoints support ([#21](https://github.com/lettermint/lettermint-java/issues/21)) ([9ca8009](https://github.com/lettermint/lettermint-java/commit/9ca8009d7ba9a17addf34702376ff67a1986d00f))
+* release SDK v2 ([a7436d5](https://github.com/lettermint/lettermint-java/commit/a7436d5c8acf9c8a5b0a37e05c11761c487ade8b))
+
+
+### BREAKING CHANGES
+
+* SDK v2 changes client structure, response types, and token configuration.
+
 # [1.2.0](https://github.com/lettermint/lettermint-java/compare/v1.1.1...v1.2.0) (2026-03-27)
 
 
