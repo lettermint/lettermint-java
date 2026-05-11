@@ -5,11 +5,13 @@ import co.lettermint.exceptions.HttpRequestException;
 import co.lettermint.exceptions.LettermintException;
 import co.lettermint.exceptions.ValidationException;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.net.URLEncoder;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -25,6 +27,7 @@ public class LettermintClient {
 
     private final String apiToken;
     private final String baseUrl;
+    private final AuthMode authMode;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
 
@@ -33,12 +36,17 @@ public class LettermintClient {
     }
 
     public LettermintClient(String apiToken, String baseUrl) {
+        this(apiToken, baseUrl, AuthMode.SENDING);
+    }
+
+    public LettermintClient(String apiToken, String baseUrl, AuthMode authMode) {
         if (apiToken == null || apiToken.isEmpty()) {
             throw new IllegalArgumentException("API token is required");
         }
 
         this.apiToken = apiToken;
         this.baseUrl = baseUrl != null ? baseUrl : DEFAULT_BASE_URL;
+        this.authMode = authMode;
         this.objectMapper = new ObjectMapper();
         this.httpClient = buildHttpClient();
     }
@@ -55,10 +63,17 @@ public class LettermintClient {
     private Response addDefaultHeaders(Interceptor.Chain chain) throws IOException {
         Request original = chain.request();
         Request.Builder builder = original.newBuilder()
-                .header("x-lettermint-token", apiToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("User-Agent", buildUserAgent());
+
+        if (authMode == AuthMode.BEARER) {
+            builder.header("Authorization", "Bearer " + apiToken);
+            builder.removeHeader("x-lettermint-token");
+        } else {
+            builder.header("x-lettermint-token", apiToken);
+            builder.removeHeader("Authorization");
+        }
 
         return chain.proceed(builder.build());
     }
@@ -73,18 +88,67 @@ public class LettermintClient {
     }
 
     public <T> T post(String path, Object payload, Class<T> responseClass, Map<String, String> headers) {
-        String url = baseUrl + path;
-        String jsonBody;
+        return request("POST", url(path, null), payload, responseClass, null, headers);
+    }
 
-        try {
-            jsonBody = objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException e) {
-            throw new LettermintException("Failed to serialize request body", e);
+    public <T> T post(String path, Object payload, TypeReference<T> responseType) {
+        return request("POST", url(path, null), payload, null, responseType, null);
+    }
+
+    public <T> T get(String path, Class<T> responseClass) {
+        return get(path, responseClass, null);
+    }
+
+    public <T> T get(String path, Class<T> responseClass, Map<String, String> query) {
+        return request("GET", url(path, query), null, responseClass, null, null);
+    }
+
+    public <T> T put(String path, Object payload, Class<T> responseClass) {
+        return request("PUT", url(path, null), payload, responseClass, null, null);
+    }
+
+    public <T> T delete(String path, Class<T> responseClass) {
+        return request("DELETE", url(path, null), null, responseClass, null, null);
+    }
+
+    public String getRaw(String path) {
+        Request request = new Request.Builder().url(url(path, null)).get().build();
+        try (Response response = httpClient.newCall(request).execute()) {
+            String responseBody = response.body() != null ? response.body().string() : "";
+
+            if (!response.isSuccessful()) {
+                handleErrorResponse(response.code(), responseBody);
+            }
+
+            return responseBody;
+        } catch (SocketTimeoutException e) {
+            throw new LettermintException("Request timed out", e);
+        } catch (IOException e) {
+            throw new LettermintException("Request failed: " + e.getMessage(), e);
+        }
+    }
+
+    private <T> T request(String method, String requestUrl, Object payload, Class<T> responseClass, TypeReference<T> responseType, Map<String, String> headers) {
+        Request.Builder requestBuilder = new Request.Builder().url(requestUrl);
+        RequestBody body = null;
+
+        if (payload != null) {
+            try {
+                body = RequestBody.create(objectMapper.writeValueAsString(payload), JSON);
+            } catch (JsonProcessingException e) {
+                throw new LettermintException("Failed to serialize request body", e);
+            }
         }
 
-        Request.Builder requestBuilder = new Request.Builder()
-                .url(url)
-                .post(RequestBody.create(jsonBody, JSON));
+        if ("POST".equals(method)) {
+            requestBuilder.post(body != null ? body : RequestBody.create(new byte[0], JSON));
+        } else if ("PUT".equals(method)) {
+            requestBuilder.put(body != null ? body : RequestBody.create(new byte[0], JSON));
+        } else if ("DELETE".equals(method)) {
+            requestBuilder.delete();
+        } else {
+            requestBuilder.get();
+        }
 
         if (headers != null) {
             for (Map.Entry<String, String> entry : headers.entrySet()) {
@@ -101,11 +165,50 @@ public class LettermintClient {
                 handleErrorResponse(response.code(), responseBody);
             }
 
-            return objectMapper.readValue(responseBody, responseClass);
+            if (responseClass != null) {
+                return objectMapper.readValue(responseBody, responseClass);
+            }
+            return objectMapper.readValue(responseBody, responseType);
         } catch (SocketTimeoutException e) {
             throw new LettermintException("Request timed out", e);
         } catch (IOException e) {
             throw new LettermintException("Request failed: " + e.getMessage(), e);
+        }
+    }
+
+    private String url(String path) {
+        return url(path, null);
+    }
+
+    private String url(String path, Map<String, String> query) {
+        if (isAbsolutePath(path)) {
+            throw new IllegalArgumentException("Request path must be relative");
+        }
+
+        StringBuilder result = new StringBuilder(baseUrl.replaceAll("/+$", "") + path);
+        if (query != null && !query.isEmpty()) {
+            result.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : query.entrySet()) {
+                if (!first) {
+                    result.append("&");
+                }
+                first = false;
+                result.append(encode(entry.getKey())).append("=").append(encode(entry.getValue()));
+            }
+        }
+        return result.toString();
+    }
+
+    private boolean isAbsolutePath(String path) {
+        return path.matches("^[a-zA-Z][a-zA-Z0-9+.-]*:.*") || path.startsWith("//");
+    }
+
+    private String encode(String value) {
+        try {
+            return URLEncoder.encode(value, "UTF-8");
+        } catch (IOException e) {
+            throw new LettermintException("Failed to encode query parameter", e);
         }
     }
 
@@ -135,5 +238,10 @@ public class LettermintClient {
 
     public ObjectMapper getObjectMapper() {
         return objectMapper;
+    }
+
+    public enum AuthMode {
+        SENDING,
+        BEARER
     }
 }

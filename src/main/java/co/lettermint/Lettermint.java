@@ -1,5 +1,6 @@
 package co.lettermint;
 
+import co.lettermint.api.ApiClient;
 import co.lettermint.client.LettermintClient;
 import co.lettermint.endpoints.EmailEndpoint;
 
@@ -49,6 +50,22 @@ public class Lettermint {
      */
     public EmailEndpoint email() {
         return new EmailEndpoint(client);
+    }
+
+    public static EmailEndpoint email(String apiToken) {
+        return email(apiToken, null);
+    }
+
+    public static EmailEndpoint email(String apiToken, String baseUrl) {
+        return new EmailEndpoint(new LettermintClient(apiToken, baseUrl, LettermintClient.AuthMode.SENDING));
+    }
+
+    public static ApiClient api(String apiToken) {
+        return api(apiToken, null);
+    }
+
+    public static ApiClient api(String apiToken, String baseUrl) {
+        return new ApiClient(apiToken, baseUrl);
     }
 
     /**

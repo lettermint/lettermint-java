@@ -3,6 +3,9 @@ package co.lettermint.endpoints;
 import co.lettermint.client.LettermintClient;
 import co.lettermint.models.Attachment;
 import co.lettermint.models.SendEmailResponse;
+import co.lettermint.models.api.SendMailRequest;
+import co.lettermint.models.api.SendMailResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.util.*;
 
@@ -225,6 +228,14 @@ public class EmailEndpoint extends Endpoint {
         } finally {
             reset();
         }
+    }
+
+    public List<SendMailResponse> sendBatch(List<SendMailRequest> payloads) {
+        return client.post("/send/batch", payloads, new TypeReference<List<SendMailResponse>>() {});
+    }
+
+    public String ping() {
+        return client.getRaw("/ping").trim();
     }
 
     private Map<String, Object> buildPayload() {
