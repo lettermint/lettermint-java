@@ -18,25 +18,26 @@ The official Java SDK for [Lettermint](https://lettermint.co).
 <dependency>
     <groupId>co.lettermint</groupId>
     <artifactId>lettermint</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'co.lettermint:lettermint:1.0.0'
+implementation 'co.lettermint:lettermint:2.0.0'
 ```
 
 ## Quick Start
 
 ```java
 import co.lettermint.Lettermint;
+import co.lettermint.endpoints.EmailEndpoint;
 import co.lettermint.models.SendEmailResponse;
 
-Lettermint lettermint = new Lettermint("your-api-token");
+EmailEndpoint email = Lettermint.email("your-sending-token");
 
-SendEmailResponse response = lettermint.email()
+SendEmailResponse response = email
     .from("sender@example.com")
     .to("recipient@example.com")
     .subject("Hello from Lettermint")
@@ -50,17 +51,28 @@ System.out.println("Message ID: " + response.getMessageId());
 
 ### Sending Emails
 
+Use a project sending token with `Lettermint.email(...)`. Sending tokens authenticate with the `x-lettermint-token` header.
+
 The SDK provides a fluent builder interface for composing emails:
 
 ```java
 import co.lettermint.Lettermint;
+import co.lettermint.endpoints.EmailEndpoint;
 import co.lettermint.models.SendEmailResponse;
 
+import java.util.HashMap;
 import java.util.Map;
 
-Lettermint lettermint = new Lettermint("your-api-token");
+EmailEndpoint email = Lettermint.email("your-sending-token");
 
-SendEmailResponse response = lettermint.email()
+Map<String, String> headers = new HashMap<>();
+headers.put("X-Custom-Header", "value");
+
+Map<String, Object> metadata = new HashMap<>();
+metadata.put("userId", "123");
+metadata.put("campaign", "welcome");
+
+SendEmailResponse response = email
     // Sender
     .from("John Doe <sender@example.com>")
 
@@ -76,7 +88,7 @@ SendEmailResponse response = lettermint.email()
     .text("Hello World")
 
     // Custom headers
-    .headers(Map.of("X-Custom-Header", "value"))
+    .headers(headers)
     // Or add headers individually
     .header("X-Another-Header", "value")
 
@@ -88,7 +100,7 @@ SendEmailResponse response = lettermint.email()
     .route("route-id")
 
     // Metadata and tags
-    .metadata(Map.of("userId", "123", "campaign", "welcome"))
+    .metadata(metadata)
     .tag("welcome", "onboarding")
 
     // Idempotency
@@ -96,6 +108,63 @@ SendEmailResponse response = lettermint.email()
 
     .send();
 ```
+
+Existing constructor-based sending usage still works:
+
+```java
+Lettermint lettermint = new Lettermint("your-sending-token");
+lettermint.email().from("sender@example.com").to("recipient@example.com").subject("Hello").send();
+```
+
+### Batch Sending
+
+```java
+import co.lettermint.models.api.SendMailRequest;
+import co.lettermint.models.api.SendMailResponse;
+
+import java.util.Collections;
+import java.util.List;
+
+SendMailRequest message = new SendMailRequest();
+message.fromValue = "sender@example.com";
+message.to = Collections.singletonList("recipient@example.com");
+message.subject = "Hello from Lettermint";
+message.text = "This is a batch email.";
+
+List<SendMailResponse> response = Lettermint.email("your-sending-token")
+    .sendBatch(Collections.singletonList(message));
+```
+
+Both sending and API clients support `ping()`:
+
+```java
+String pong = Lettermint.email("your-sending-token").ping();
+```
+
+### Team API
+
+Use a team API token with `Lettermint.api(...)`. API tokens authenticate with `Authorization: Bearer ...` and are separate from project sending tokens.
+
+```java
+import co.lettermint.Lettermint;
+import co.lettermint.api.ApiClient;
+import co.lettermint.models.api.DomainIndexResponse;
+import co.lettermint.models.api.TeamData;
+
+import java.util.Collections;
+import java.util.Map;
+
+ApiClient api = Lettermint.api("your-api-token");
+
+Map<String, String> query = Collections.singletonMap("page[size]", "10");
+
+DomainIndexResponse domains = api.domains().list(query);
+TeamData team = api.team().retrieve();
+String messageHtml = api.messages().html("message-id");
+String pong = api.ping();
+```
+
+Endpoint groups are available as `domains()`, `messages()`, `projects()`, `routes()`, `stats()`, `suppressions()`, `team()`, and `webhooks()`.
 
 ### Webhook Verification
 
