@@ -34,6 +34,10 @@ public class ApiClient {
         return client.getRaw("/ping").trim();
     }
 
+    public BlockedFileTypesResponse blockedFileTypes() {
+        return client.get("/blocked-file-types", BlockedFileTypesResponse.class);
+    }
+
     public DomainsEndpoint domains() {
         return domains;
     }

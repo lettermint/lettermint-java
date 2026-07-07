@@ -13,4 +13,7 @@ public class StoreProjectData {
 
     @JsonProperty("initial_routes")
     public InitialRoutes initialRoutes;
+
+    @JsonProperty("short_token")
+    public Boolean shortToken;
 }

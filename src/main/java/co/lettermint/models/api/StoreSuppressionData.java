@@ -13,7 +13,7 @@ public class StoreSuppressionData {
     public SuppressionReason reason;
 
     @JsonProperty("scope")
-    public String scope;
+    public SuppressionScope scope;
 
     @JsonProperty("route_id")
     public String routeId;
