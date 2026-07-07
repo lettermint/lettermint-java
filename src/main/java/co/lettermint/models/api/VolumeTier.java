@@ -5,6 +5,7 @@ public final class VolumeTier {
     public static final int VALUE_10000 = 10000;
     public static final int VALUE_50000 = 50000;
     public static final int VALUE_125000 = 125000;
+    public static final int VALUE_300000 = 300000;
     public static final int VALUE_500000 = 500000;
     public static final int VALUE_750000 = 750000;
     public static final int VALUE_1000000 = 1000000;

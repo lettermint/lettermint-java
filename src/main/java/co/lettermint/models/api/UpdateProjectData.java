@@ -11,6 +11,9 @@ public class UpdateProjectData {
     @JsonProperty("smtp_enabled")
     public Boolean smtpEnabled;
 
+    @JsonProperty("redact_email_content")
+    public Boolean redactEmailContent;
+
     @JsonProperty("default_route_id")
     public String defaultRouteId;
 }

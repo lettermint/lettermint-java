@@ -51,6 +51,25 @@ class ApiClientTest {
     }
 
     @Test
+    void apiBlockedFileTypesUsesBearerToken() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.enqueue(new MockResponse()
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("{\"extensions\":[\"exe\"],\"mime_types\":[\"application/x-msdownload\"]}"));
+            server.start();
+
+            ApiClient api = Lettermint.api("api-token", server.url("/v1").toString());
+            co.lettermint.models.api.BlockedFileTypesResponse response = api.blockedFileTypes();
+
+            RecordedRequest request = server.takeRequest();
+            assertEquals("/v1/blocked-file-types", request.getPath());
+            assertEquals("Bearer api-token", request.getHeader("Authorization"));
+            assertNull(request.getHeader("x-lettermint-token"));
+            assertEquals("exe", response.extensions.get(0));
+        }
+    }
+
+    @Test
     void sendsBatchEmailsWithTypedPayloads() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(new MockResponse()
@@ -120,6 +139,45 @@ class ApiClientTest {
     }
 
     @Test
+    void generatedApiModelsMatchCurrentTeamSchema() {
+        assertEquals("auto_replied", co.lettermint.models.api.MessageEventType.AUTOREPLIED);
+        assertEquals("message.auto_replied", co.lettermint.models.api.WebhookEvent.MESSAGEAUTOREPLIED);
+        assertEquals(300000, co.lettermint.models.api.VolumeTier.VALUE_300000);
+
+        co.lettermint.models.api.UpdateRouteSettingsData settings = new co.lettermint.models.api.UpdateRouteSettingsData();
+        settings.redactEmailContent = true;
+        settings.disablePlaintextGeneration = false;
+
+        co.lettermint.models.api.UpdateRouteInboundSettingsData inboundSettings = new co.lettermint.models.api.UpdateRouteInboundSettingsData();
+        inboundSettings.inboundSpamThreshold = 3.0;
+
+        co.lettermint.models.api.UpdateRouteData routeUpdate = new co.lettermint.models.api.UpdateRouteData();
+        routeUpdate.settings = settings;
+        routeUpdate.inboundSettings = inboundSettings;
+
+        co.lettermint.models.api.UpdateProjectData projectUpdate = new co.lettermint.models.api.UpdateProjectData();
+        projectUpdate.redactEmailContent = false;
+
+        co.lettermint.models.api.ProjectData project = new co.lettermint.models.api.ProjectData();
+        project.redactEmailContent = true;
+
+        co.lettermint.models.api.StoreProjectData projectCreate = new co.lettermint.models.api.StoreProjectData();
+        projectCreate.shortToken = true;
+
+        co.lettermint.models.api.BlockedFileTypesResponse blockedFileTypes = new co.lettermint.models.api.BlockedFileTypesResponse();
+        blockedFileTypes.extensions = Collections.singletonList("exe");
+        blockedFileTypes.mimeTypes = Collections.singletonList("application/x-msdownload");
+
+        assertFalse(routeUpdate.settings.disablePlaintextGeneration);
+        assertEquals(3.0, routeUpdate.inboundSettings.inboundSpamThreshold);
+        assertFalse(projectUpdate.redactEmailContent);
+        assertTrue(projectCreate.shortToken);
+        assertTrue(project.redactEmailContent);
+        assertEquals("global", co.lettermint.models.api.SuppressionScope.GLOBAL);
+        assertEquals("application/x-msdownload", blockedFileTypes.mimeTypes.get(0));
+    }
+
+    @Test
     void apiExposesDocumentedOperations() throws Exception {
         ApiClient api = Lettermint.api("api-token");
         Map<String, Object> methods = new HashMap<>();
@@ -131,6 +189,7 @@ class ApiClientTest {
         methods.put("domain.verifySpecificDnsRecord", api.domains().getClass().getMethod("verifyDnsRecord", String.class, String.class));
         methods.put("domain.updateProjects", api.domains().getClass().getMethod("updateProjects", String.class, co.lettermint.models.api.UpdateDomainProjectsData.class));
         methods.put("v1.ping", api.getClass().getMethod("ping"));
+        methods.put("v1.blockedFileTypes", api.getClass().getMethod("blockedFileTypes"));
         methods.put("message.index", api.messages().getClass().getMethod("list"));
         methods.put("message.show", api.messages().getClass().getMethod("retrieve", String.class));
         methods.put("message.events", api.messages().getClass().getMethod("events", String.class));
