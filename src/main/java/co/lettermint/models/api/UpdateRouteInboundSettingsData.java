@@ -12,5 +12,5 @@ public class UpdateRouteInboundSettingsData {
     public Double inboundSpamThreshold;
 
     @JsonProperty("attachment_delivery")
-    public AttachmentDelivery attachmentDelivery;
+    public String attachmentDelivery;
 }

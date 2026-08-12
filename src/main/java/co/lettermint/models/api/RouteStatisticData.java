@@ -29,6 +29,15 @@ public class RouteStatisticData {
     @JsonProperty("inbound_received_count")
     public Integer inboundReceivedCount;
 
+    @JsonProperty("observed_opened_count")
+    public Integer observedOpenedCount;
+
+    @JsonProperty("human_opened_count")
+    public Integer humanOpenedCount;
+
+    @JsonProperty("privacy_opened_count")
+    public Integer privacyOpenedCount;
+
     @JsonProperty("effective_opened_count")
     public Integer effectiveOpenedCount;
 

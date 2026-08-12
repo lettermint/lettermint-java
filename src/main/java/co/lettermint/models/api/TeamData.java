@@ -13,13 +13,16 @@ public class TeamData {
     public String name;
 
     @JsonProperty("type")
-    public TeamType type;
+    public String type;
 
     @JsonProperty("plan")
-    public Plan plan;
+    public String plan;
+
+    @JsonProperty("included_volume")
+    public Integer includedVolume;
 
     @JsonProperty("tier")
-    public VolumeTier tier;
+    public Integer tier;
 
     @JsonProperty("verified_at")
     public String verifiedAt;

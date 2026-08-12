@@ -9,18 +9,18 @@ public class StoreSuppressionData {
     @JsonProperty("email")
     public String email;
 
+    @JsonProperty("emails")
+    public List<String> emails;
+
     @JsonProperty("reason")
-    public SuppressionReason reason;
+    public String reason;
 
     @JsonProperty("scope")
-    public SuppressionScope scope;
+    public String scope;
 
     @JsonProperty("route_id")
     public String routeId;
 
     @JsonProperty("project_id")
     public String projectId;
-
-    @JsonProperty("emails")
-    public List<String> emails;
 }

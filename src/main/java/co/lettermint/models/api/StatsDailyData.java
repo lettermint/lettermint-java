@@ -35,6 +35,15 @@ public class StatsDailyData {
     @JsonProperty("broadcast")
     public StatsTypeData broadcast;
 
+    @JsonProperty("observed_opened")
+    public Integer observedOpened;
+
+    @JsonProperty("human_opened")
+    public Integer humanOpened;
+
+    @JsonProperty("privacy_opened")
+    public Integer privacyOpened;
+
     @JsonProperty("effective_opened")
     public Integer effectiveOpened;
 

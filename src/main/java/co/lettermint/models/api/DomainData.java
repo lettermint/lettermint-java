@@ -13,6 +13,12 @@ public class DomainData {
     @JsonProperty("domain")
     public String domain;
 
+    @JsonProperty("dkim_mode")
+    public String dkimMode;
+
+    @JsonProperty("rotation_ready")
+    public Boolean rotationReady;
+
     @JsonProperty("status_changed_at")
     public String statusChangedAt;
 

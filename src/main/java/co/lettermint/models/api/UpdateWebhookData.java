@@ -12,12 +12,12 @@ public class UpdateWebhookData {
     @JsonProperty("url")
     public String url;
 
+    @JsonProperty("events")
+    public List<String> events;
+
     @JsonProperty("enabled")
     public Boolean enabled;
 
     @JsonProperty("include_machine_events")
     public Boolean includeMachineEvents;
-
-    @JsonProperty("events")
-    public List<WebhookEvent> events;
 }

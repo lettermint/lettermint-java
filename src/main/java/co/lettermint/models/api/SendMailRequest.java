@@ -13,18 +13,6 @@ public class SendMailRequest {
     @JsonProperty("from")
     public String fromValue;
 
-    @JsonProperty("subject")
-    public String subject;
-
-    @JsonProperty("tag")
-    public String tag;
-
-    @JsonProperty("html")
-    public String html;
-
-    @JsonProperty("text")
-    public String text;
-
     @JsonProperty("to")
     public List<String> to;
 
@@ -37,14 +25,26 @@ public class SendMailRequest {
     @JsonProperty("reply_to")
     public List<String> replyTo;
 
+    @JsonProperty("subject")
+    public String subject;
+
     @JsonProperty("headers")
     public Map<String, String> headers;
 
     @JsonProperty("metadata")
     public Map<String, String> metadata;
 
+    @JsonProperty("tag")
+    public String tag;
+
     @JsonProperty("settings")
     public Map<String, Object> settings;
+
+    @JsonProperty("html")
+    public String html;
+
+    @JsonProperty("text")
+    public String text;
 
     @JsonProperty("attachments")
     public List<Map<String, Object>> attachments;

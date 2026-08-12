@@ -11,10 +11,10 @@ public class MessageData {
     public String id;
 
     @JsonProperty("type")
-    public MessageType type;
+    public String type;
 
     @JsonProperty("status")
-    public MessageStatus status;
+    public String status;
 
     @JsonProperty("status_changed_at")
     public String statusChangedAt;

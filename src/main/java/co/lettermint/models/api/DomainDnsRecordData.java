@@ -9,7 +9,7 @@ public class DomainDnsRecordData {
     public String id;
 
     @JsonProperty("type")
-    public RecordType type;
+    public String type;
 
     @JsonProperty("hostname")
     public String hostname;
@@ -21,7 +21,16 @@ public class DomainDnsRecordData {
     public String content;
 
     @JsonProperty("status")
-    public DnsRecordStatus status;
+    public String status;
+
+    @JsonProperty("purpose")
+    public String purpose;
+
+    @JsonProperty("verification_scope")
+    public String verificationScope;
+
+    @JsonProperty("required_for_verification")
+    public Boolean requiredForVerification;
 
     @JsonProperty("verified_at")
     public String verifiedAt;

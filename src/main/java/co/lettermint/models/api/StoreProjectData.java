@@ -12,7 +12,7 @@ public class StoreProjectData {
     public Boolean smtpEnabled;
 
     @JsonProperty("initial_routes")
-    public InitialRoutes initialRoutes;
+    public String initialRoutes;
 
     @JsonProperty("short_token")
     public Boolean shortToken;

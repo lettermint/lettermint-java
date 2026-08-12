@@ -99,6 +99,9 @@ class ApiClientTest {
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"id\":\"domain_123\"}"));
             server.enqueue(new MockResponse().setBody("<html></html>"));
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"data\":{\"verified\":true}}"));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"data\":[]}"));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"id\":\"user/id\"}"));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"id\":\"user/id\"}"));
             server.start();
 
             ApiClient api = Lettermint.api("api-token", server.url("/v1").toString());
@@ -106,10 +109,24 @@ class ApiClientTest {
             assertEquals("domain_123", api.domains().retrieve("domain/id").id);
             assertEquals("<html></html>", api.messages().html("msg/id"));
             assertTrue(api.routes().verifyInboundDomain("route/id").data.containsKey("verified"));
+            assertTrue(api.team().roles().data.isEmpty());
+            assertEquals("user/id", api.team().member("user/id").id);
+
+            co.lettermint.models.api.UpdateTeamMemberAssignmentData assignment =
+                    new co.lettermint.models.api.UpdateTeamMemberAssignmentData();
+            assignment.roleId = "role_123";
+            assignment.projectAccess = Collections.<String, Object>singletonMap("scope", "all");
+            assertEquals("user/id", api.team().updateMemberAssignment("user/id", assignment).id);
 
             assertEquals("/v1/domains/domain%2Fid", server.takeRequest().getPath());
             assertEquals("/v1/messages/msg%2Fid/html", server.takeRequest().getPath());
             assertEquals("/v1/routes/route%2Fid/verify-inbound-domain", server.takeRequest().getPath());
+            assertEquals("/v1/team/roles", server.takeRequest().getPath());
+            assertEquals("/v1/team/members/user%2Fid", server.takeRequest().getPath());
+            RecordedRequest assignmentRequest = server.takeRequest();
+            assertEquals("PUT", assignmentRequest.getMethod());
+            assertEquals("/v1/team/members/user%2Fid/assignment", assignmentRequest.getPath());
+            assertTrue(assignmentRequest.getBody().readUtf8().contains("\"role_id\":\"role_123\""));
         }
     }
 
@@ -142,11 +159,13 @@ class ApiClientTest {
     void generatedApiModelsMatchCurrentTeamSchema() {
         assertEquals("auto_replied", co.lettermint.models.api.MessageEventType.AUTOREPLIED);
         assertEquals("message.auto_replied", co.lettermint.models.api.WebhookEvent.MESSAGEAUTOREPLIED);
-        assertEquals(300000, co.lettermint.models.api.VolumeTier.VALUE_300000);
+        assertEquals("admin", co.lettermint.models.api.BuiltInTeamRole.ADMIN);
+        assertEquals("enforced", co.lettermint.models.api.TlsPolicy.ENFORCED);
 
         co.lettermint.models.api.UpdateRouteSettingsData settings = new co.lettermint.models.api.UpdateRouteSettingsData();
         settings.redactEmailContent = true;
-        settings.disablePlaintextGeneration = false;
+        settings.generatePlaintextFallback = false;
+        settings.tls = co.lettermint.models.api.TlsPolicy.ENFORCED;
 
         co.lettermint.models.api.UpdateRouteInboundSettingsData inboundSettings = new co.lettermint.models.api.UpdateRouteInboundSettingsData();
         inboundSettings.inboundSpamThreshold = 3.0;
@@ -168,13 +187,43 @@ class ApiClientTest {
         blockedFileTypes.extensions = Collections.singletonList("exe");
         blockedFileTypes.mimeTypes = Collections.singletonList("application/x-msdownload");
 
-        assertFalse(routeUpdate.settings.disablePlaintextGeneration);
+        co.lettermint.models.api.TeamData team = new co.lettermint.models.api.TeamData();
+        team.includedVolume = 300000;
+
+        co.lettermint.models.api.TeamRoleData role = new co.lettermint.models.api.TeamRoleData();
+        role.assignable = true;
+        role.permissions = Collections.singletonList(co.lettermint.models.api.RbacPermission.MEMBERSMANAGE);
+
+        co.lettermint.models.api.UpdateTeamMemberAssignmentData assignment =
+                new co.lettermint.models.api.UpdateTeamMemberAssignmentData();
+        assignment.roleId = "role_123";
+        assignment.projectAccess = Collections.<String, Object>singletonMap("scope", "selected");
+
+        co.lettermint.models.api.DomainData domain = new co.lettermint.models.api.DomainData();
+        domain.dkimMode = co.lettermint.models.api.DkimMode.MANAGEDCNAME;
+
+        co.lettermint.models.api.SuppressedRecipientData recipient = new co.lettermint.models.api.SuppressedRecipientData();
+        recipient.sourceMessage = new co.lettermint.models.api.SuppressionSourceMessageData();
+        recipient.sourceMessage.id = "msg_123";
+
+        co.lettermint.models.api.MessageListData message = new co.lettermint.models.api.MessageListData();
+        message.spamScore = 2.5;
+
+        assertFalse(routeUpdate.settings.generatePlaintextFallback);
+        assertEquals("enforced", routeUpdate.settings.tls);
         assertEquals(3.0, routeUpdate.inboundSettings.inboundSpamThreshold);
         assertFalse(projectUpdate.redactEmailContent);
         assertTrue(projectCreate.shortToken);
         assertTrue(project.redactEmailContent);
         assertEquals("global", co.lettermint.models.api.SuppressionScope.GLOBAL);
         assertEquals("application/x-msdownload", blockedFileTypes.mimeTypes.get(0));
+        assertEquals(300000, team.includedVolume);
+        assertTrue(role.assignable);
+        assertEquals("members:manage", role.permissions.get(0));
+        assertEquals("role_123", assignment.roleId);
+        assertEquals("managed_cname", domain.dkimMode);
+        assertEquals("msg_123", recipient.sourceMessage.id);
+        assertEquals(2.5, message.spamScore);
     }
 
     @Test
@@ -202,9 +251,6 @@ class ApiClientTest {
         methods.put("project.update", api.projects().getClass().getMethod("update", String.class, co.lettermint.models.api.UpdateProjectData.class));
         methods.put("project.destroy", api.projects().getClass().getMethod("delete", String.class));
         methods.put("project.rotateToken", api.projects().getClass().getMethod("rotateToken", String.class));
-        methods.put("project.updateMembers", api.projects().getClass().getMethod("updateMembers", String.class, co.lettermint.models.api.UpdateProjectMembersData.class));
-        methods.put("project.addMember", api.projects().getClass().getMethod("addMember", String.class, String.class));
-        methods.put("project.removeMember", api.projects().getClass().getMethod("removeMember", String.class, String.class));
         methods.put("route.index", api.projects().getClass().getMethod("routes", String.class));
         methods.put("route.store", api.projects().getClass().getMethod("createRoute", String.class, co.lettermint.models.api.StoreRouteData.class));
         methods.put("route.show", api.routes().getClass().getMethod("retrieve", String.class));
@@ -218,7 +264,10 @@ class ApiClientTest {
         methods.put("team.show", api.team().getClass().getMethod("retrieve"));
         methods.put("team.update", api.team().getClass().getMethod("update", co.lettermint.models.api.UpdateTeamData.class));
         methods.put("team.usage", api.team().getClass().getMethod("usage"));
+        methods.put("team.roles", api.team().getClass().getMethod("roles"));
         methods.put("team.members", api.team().getClass().getMethod("members"));
+        methods.put("team.members.show", api.team().getClass().getMethod("member", String.class));
+        methods.put("team.members.assignment.update", api.team().getClass().getMethod("updateMemberAssignment", String.class, co.lettermint.models.api.UpdateTeamMemberAssignmentData.class));
         methods.put("webhook.index", api.webhooks().getClass().getMethod("list"));
         methods.put("webhook.store", api.webhooks().getClass().getMethod("create", co.lettermint.models.api.StoreWebhookData.class));
         methods.put("webhook.show", api.webhooks().getClass().getMethod("retrieve", String.class));

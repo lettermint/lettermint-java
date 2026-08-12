@@ -9,7 +9,7 @@ public class StoreRouteData {
     public String name;
 
     @JsonProperty("route_type")
-    public RouteType routeType;
+    public String routeType;
 
     @JsonProperty("slug")
     public String slug;
