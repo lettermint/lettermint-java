@@ -3,27 +3,16 @@ package co.lettermint.models.api;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MessageIndexResponse {
     @JsonProperty("data")
     public List<MessageListData> data;
 
-    @JsonProperty("path")
-    public String path;
+    @JsonProperty("links")
+    public List<String> links;
 
-    @JsonProperty("per_page")
-    public Integer perPage;
-
-    @JsonProperty("next_cursor")
-    public String nextCursor;
-
-    @JsonProperty("next_page_url")
-    public String nextPageUrl;
-
-    @JsonProperty("prev_cursor")
-    public String prevCursor;
-
-    @JsonProperty("prev_page_url")
-    public String prevPageUrl;
+    @JsonProperty("meta")
+    public Map<String, Object> meta;
 }

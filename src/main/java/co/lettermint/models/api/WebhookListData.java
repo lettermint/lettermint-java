@@ -19,7 +19,7 @@ public class WebhookListData {
     public String url;
 
     @JsonProperty("events")
-    public List<WebhookEvent> events;
+    public List<String> events;
 
     @JsonProperty("enabled")
     public Boolean enabled;

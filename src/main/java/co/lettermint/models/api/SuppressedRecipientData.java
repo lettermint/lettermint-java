@@ -9,22 +9,25 @@ public class SuppressedRecipientData {
     public String id;
 
     @JsonProperty("type")
-    public SuppressionType type;
+    public String type;
 
     @JsonProperty("value")
     public String value;
 
     @JsonProperty("reason")
-    public SuppressionReason reason;
+    public String reason;
 
     @JsonProperty("scope")
-    public SuppressionScope scope;
+    public String scope;
 
     @JsonProperty("project_id")
     public String projectId;
 
     @JsonProperty("route_id")
     public String routeId;
+
+    @JsonProperty("source_message")
+    public SuppressionSourceMessageData sourceMessage;
 
     @JsonProperty("created_at")
     public String createdAt;

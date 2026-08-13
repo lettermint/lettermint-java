@@ -63,11 +63,17 @@ class EmailEndpointTest {
                 .setHeader("Content-Type", "application/json"));
 
         Map<String, String> headers = new HashMap<>();
-        headers.put("X-Custom-Header", "custom-value");
+        headers.put("Message-ID", "<ticket-123@example.com>");
+        headers.put("X-LM-Preserve-Message-ID", "true");
 
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("userId", "user_123");
         metadata.put("campaign", "welcome");
+
+        Map<String, Object> settings = new HashMap<>();
+        settings.put("track_opens", false);
+        settings.put("track_clicks", true);
+        settings.put("tls", "enforced");
 
         SendEmailResponse response = lettermint.email()
                 .from("John Doe <sender@example.com>")
@@ -84,7 +90,8 @@ class EmailEndpointTest {
                 .attach("invite.ics", "base64icalFile", null, "text/calendar; method=REQUEST")
                 .route("route-slug-123")
                 .metadata(metadata)
-                .tag("welcome", "onboarding")
+                .tag("welcome")
+                .settings(settings)
                 .idempotencyKey("unique-key-123")
                 .send();
 
@@ -103,7 +110,13 @@ class EmailEndpointTest {
         assertTrue(body.contains("\"html\":\"<p>Hello <b>World</b></p>\""));
         assertTrue(body.contains("\"text\":\"Hello World\""));
         assertTrue(body.contains("\"route\":\"route-slug-123\""));
-        assertTrue(body.contains("\"tags\":[\"welcome\",\"onboarding\"]"));
+        assertTrue(body.contains("\"tag\":\"welcome\""));
+        assertTrue(body.contains("\"settings\":"));
+        assertTrue(body.contains("\"track_opens\":false"));
+        assertTrue(body.contains("\"track_clicks\":true"));
+        assertTrue(body.contains("\"tls\":\"enforced\""));
+        assertTrue(body.contains("\"Message-ID\":\"<ticket-123@example.com>\""));
+        assertTrue(body.contains("\"X-LM-Preserve-Message-ID\":\"true\""));
         assertTrue(body.contains("{\"filename\":\"document.pdf\",\"content\":\"base64content\"}"));
         assertTrue(body.contains("{\"filename\":\"logo.png\",\"content\":\"base64logo\",\"content_id\":\"logo-cid\"}"));
         assertTrue(body.contains("{\"filename\":\"invite.ics\",\"content\":\"base64icalFile\",\"content_type\":\"text/calendar; method=REQUEST\"}"));

@@ -11,8 +11,14 @@ public class UpdateRouteSettingsData {
     @JsonProperty("track_clicks")
     public Boolean trackClicks;
 
-    @JsonProperty("disable_plaintext_generation")
-    public Boolean disablePlaintextGeneration;
+    @JsonProperty("generate_plaintext_fallback")
+    public Boolean generatePlaintextFallback;
+
+    @JsonProperty("suppress_auto_responders")
+    public Boolean suppressAutoResponders;
+
+    @JsonProperty("tls")
+    public String tls;
 
     @JsonProperty("disable_hosted_unsubscribe")
     public Boolean disableHostedUnsubscribe;

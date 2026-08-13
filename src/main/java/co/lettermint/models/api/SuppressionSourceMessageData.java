@@ -4,21 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class DomainListData {
+public class SuppressionSourceMessageData {
     @JsonProperty("id")
     public String id;
 
-    @JsonProperty("domain")
-    public String domain;
+    @JsonProperty("available")
+    public Boolean available;
 
-    @JsonProperty("status")
-    public String status;
-
-    @JsonProperty("dkim_mode")
-    public String dkimMode;
-
-    @JsonProperty("status_changed_at")
-    public String statusChangedAt;
+    @JsonProperty("subject")
+    public String subject;
 
     @JsonProperty("created_at")
     public String createdAt;

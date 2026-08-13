@@ -2,6 +2,8 @@ package co.lettermint.models.api;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class RouteData {
@@ -18,7 +20,7 @@ public class RouteData {
     public String name;
 
     @JsonProperty("route_type")
-    public RouteType routeType;
+    public String routeType;
 
     @JsonProperty("is_default")
     public Boolean isDefault;
@@ -36,7 +38,10 @@ public class RouteData {
     public Double inboundSpamThreshold;
 
     @JsonProperty("attachment_delivery")
-    public AttachmentDelivery attachmentDelivery;
+    public String attachmentDelivery;
+
+    @JsonProperty("settings")
+    public Map<String, Object> settings;
 
     @JsonProperty("project")
     public ProjectData project;
@@ -48,7 +53,7 @@ public class RouteData {
     public Integer suppressedRecipientsCount;
 
     @JsonProperty("statistics")
-    public Object statistics;
+    public List<RouteStatisticData> statistics;
 
     @JsonProperty("created_at")
     public String createdAt;

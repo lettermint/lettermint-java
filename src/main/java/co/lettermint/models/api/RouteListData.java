@@ -15,7 +15,7 @@ public class RouteListData {
     public String name;
 
     @JsonProperty("route_type")
-    public RouteType routeType;
+    public String routeType;
 
     @JsonProperty("is_default")
     public Boolean isDefault;

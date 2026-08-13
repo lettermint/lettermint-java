@@ -10,10 +10,13 @@ public class MessageListData {
     public String id;
 
     @JsonProperty("type")
-    public MessageType type;
+    public String type;
 
     @JsonProperty("status")
-    public MessageStatus status;
+    public String status;
+
+    @JsonProperty("spam_score")
+    public Double spamScore;
 
     @JsonProperty("from_email")
     public String fromEmail;
@@ -38,6 +41,9 @@ public class MessageListData {
 
     @JsonProperty("tag")
     public String tag;
+
+    @JsonProperty("status_changed_at")
+    public String statusChangedAt;
 
     @JsonProperty("created_at")
     public String createdAt;

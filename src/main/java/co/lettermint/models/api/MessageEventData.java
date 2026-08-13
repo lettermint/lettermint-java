@@ -10,7 +10,7 @@ public class MessageEventData {
     public String messageId;
 
     @JsonProperty("event")
-    public MessageEventType event;
+    public String event;
 
     @JsonProperty("metadata")
     public Map<String, Object> metadata;

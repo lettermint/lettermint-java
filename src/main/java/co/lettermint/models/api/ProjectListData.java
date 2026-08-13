@@ -20,9 +20,6 @@ public class ProjectListData {
     @JsonProperty("domains_count")
     public Integer domainsCount;
 
-    @JsonProperty("team_members_count")
-    public Integer teamMembersCount;
-
     @JsonProperty("last_28_days")
     public MessageStatsData last28Days;
 

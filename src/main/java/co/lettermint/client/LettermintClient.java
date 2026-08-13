@@ -92,7 +92,11 @@ public class LettermintClient {
     }
 
     public <T> T post(String path, Object payload, TypeReference<T> responseType) {
-        return request("POST", url(path, null), payload, null, responseType, null);
+        return post(path, payload, responseType, null);
+    }
+
+    public <T> T post(String path, Object payload, TypeReference<T> responseType, Map<String, String> headers) {
+        return request("POST", url(path, null), payload, null, responseType, headers);
     }
 
     public <T> T get(String path, Class<T> responseClass) {

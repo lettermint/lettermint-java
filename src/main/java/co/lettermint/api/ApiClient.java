@@ -193,18 +193,6 @@ public class ApiClient {
             return client.post("/projects/" + segment(projectId) + "/rotate-token", null, ProjectRotateTokenResponse.class);
         }
 
-        public ProjectUpdateMembersResponse updateMembers(String projectId, UpdateProjectMembersData payload) {
-            return client.put("/projects/" + segment(projectId) + "/members", payload, ProjectUpdateMembersResponse.class);
-        }
-
-        public ProjectAddMemberResponse addMember(String projectId, String teamMemberId) {
-            return client.post("/projects/" + segment(projectId) + "/members/" + segment(teamMemberId), null, ProjectAddMemberResponse.class);
-        }
-
-        public ProjectRemoveMemberResponse removeMember(String projectId, String teamMemberId) {
-            return client.delete("/projects/" + segment(projectId) + "/members/" + segment(teamMemberId), ProjectRemoveMemberResponse.class);
-        }
-
         public RouteIndexResponse routes(String projectId) {
             return routes(projectId, null);
         }
@@ -305,12 +293,24 @@ public class ApiClient {
             return client.get("/team/usage", TeamUsageDetailData.class, query);
         }
 
+        public TeamRolesResponse roles() {
+            return client.get("/team/roles", TeamRolesResponse.class);
+        }
+
         public TeamMembersResponse members() {
             return members(null);
         }
 
         public TeamMembersResponse members(Map<String, String> query) {
             return client.get("/team/members", TeamMembersResponse.class, query);
+        }
+
+        public TeamMemberData member(String userId) {
+            return client.get("/team/members/" + segment(userId), TeamMemberData.class);
+        }
+
+        public TeamMemberData updateMemberAssignment(String userId, UpdateTeamMemberAssignmentData payload) {
+            return client.put("/team/members/" + segment(userId) + "/assignment", payload, TeamMemberData.class);
         }
     }
 

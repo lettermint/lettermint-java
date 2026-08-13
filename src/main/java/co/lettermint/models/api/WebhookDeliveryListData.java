@@ -12,10 +12,10 @@ public class WebhookDeliveryListData {
     public String webhookId;
 
     @JsonProperty("event_type")
-    public WebhookEvent eventType;
+    public String eventType;
 
     @JsonProperty("status")
-    public WebhookDeliveryStatus status;
+    public String status;
 
     @JsonProperty("attempt_number")
     public Integer attemptNumber;
