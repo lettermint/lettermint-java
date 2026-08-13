@@ -26,7 +26,8 @@ public class EmailEndpoint extends Endpoint {
     private List<Attachment> attachments;
     private String route;
     private Map<String, Object> metadata;
-    private List<String> tags;
+    private String tag;
+    private Map<String, Object> settings;
     private String idempotencyKey;
 
     public EmailEndpoint(LettermintClient client) {
@@ -50,7 +51,8 @@ public class EmailEndpoint extends Endpoint {
         this.attachments = new ArrayList<>();
         this.route = null;
         this.metadata = new LinkedHashMap<>();
-        this.tags = new ArrayList<>();
+        this.tag = null;
+        this.settings = null;
         this.idempotencyKey = null;
     }
 
@@ -196,10 +198,18 @@ public class EmailEndpoint extends Endpoint {
     }
 
     /**
-     * Add tags to the email.
+     * Set the email tag.
      */
-    public EmailEndpoint tag(String... tags) {
-        this.tags.addAll(Arrays.asList(tags));
+    public EmailEndpoint tag(String tag) {
+        this.tag = tag;
+        return this;
+    }
+
+    /**
+     * Set per-email settings that override the selected route.
+     */
+    public EmailEndpoint settings(Map<String, Object> settings) {
+        this.settings = new LinkedHashMap<>(settings);
         return this;
     }
 
@@ -231,7 +241,17 @@ public class EmailEndpoint extends Endpoint {
     }
 
     public List<SendMailResponse> sendBatch(List<SendMailRequest> payloads) {
-        return client.post("/send/batch", payloads, new TypeReference<List<SendMailResponse>>() {});
+        Map<String, String> requestHeaders = null;
+
+        if (idempotencyKey != null && !idempotencyKey.isEmpty()) {
+            requestHeaders = Collections.singletonMap("Idempotency-Key", idempotencyKey);
+        }
+
+        try {
+            return client.post("/send/batch", payloads, new TypeReference<List<SendMailResponse>>() {}, requestHeaders);
+        } finally {
+            reset();
+        }
     }
 
     public String ping() {
@@ -289,8 +309,12 @@ public class EmailEndpoint extends Endpoint {
             payload.put("metadata", metadata);
         }
 
-        if (!tags.isEmpty()) {
-            payload.put("tags", tags);
+        if (tag != null) {
+            payload.put("tag", tag);
+        }
+
+        if (settings != null) {
+            payload.put("settings", settings);
         }
 
         return payload;

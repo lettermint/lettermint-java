@@ -84,11 +84,13 @@ class ApiClientTest {
 
             List<SendMailResponse> response = Lettermint
                     .email("sending-token", server.url("/v1").toString())
+                    .idempotencyKey("batch-key")
                     .sendBatch(Collections.singletonList(payload));
 
             RecordedRequest request = server.takeRequest();
             assertEquals("/v1/send/batch", request.getPath());
             assertEquals("sending-token", request.getHeader("x-lettermint-token"));
+            assertEquals("batch-key", request.getHeader("Idempotency-Key"));
             assertEquals("msg_123", response.get(0).messageId);
         }
     }
