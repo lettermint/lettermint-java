@@ -19,6 +19,17 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v2.2.0](https://github.com/lettermint/lettermint-java/compare/v2.1.0...v2.2.0) - 2026-08-13
+
+### What's Changed
+
+* chore(deps): bump actions/checkout from 6 to 7 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/28
+* chore(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.21.3 to 2.22.0 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/24
+* chore(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.22.0 to 2.22.1 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/34
+* feat(api): add team RBAC and fix email tags, settings, and batch headers by @bjarn in https://github.com/lettermint/lettermint-java/pull/36
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v2.1.0...v2.2.0
+
 ## [v2.1.0](https://github.com/lettermint/lettermint-java/compare/v1.1.1...v2.1.0) - 2026-07-07
 
 ### What's Changed
