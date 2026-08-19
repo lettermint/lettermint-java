@@ -22,6 +22,9 @@ public class MessageData {
     @JsonProperty("tag")
     public String tag;
 
+    @JsonProperty("tags")
+    public List<Map<String, Object>> tags;
+
     @JsonProperty("from_email")
     public String fromEmail;
 

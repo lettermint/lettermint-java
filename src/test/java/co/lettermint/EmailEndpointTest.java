@@ -70,6 +70,10 @@ class EmailEndpointTest {
         metadata.put("userId", "user_123");
         metadata.put("campaign", "welcome");
 
+        Map<String, String> tags = new HashMap<>();
+        tags.put("name", "campaign");
+        tags.put("value", "welcome-v2");
+
         Map<String, Object> settings = new HashMap<>();
         settings.put("track_opens", false);
         settings.put("track_clicks", true);
@@ -91,6 +95,7 @@ class EmailEndpointTest {
                 .route("route-slug-123")
                 .metadata(metadata)
                 .tag("welcome")
+                .tags(tags)
                 .settings(settings)
                 .idempotencyKey("unique-key-123")
                 .send();
@@ -111,6 +116,7 @@ class EmailEndpointTest {
         assertTrue(body.contains("\"text\":\"Hello World\""));
         assertTrue(body.contains("\"route\":\"route-slug-123\""));
         assertTrue(body.contains("\"tag\":\"welcome\""));
+        assertTrue(body.contains("\"tags\""));
         assertTrue(body.contains("\"settings\":"));
         assertTrue(body.contains("\"track_opens\":false"));
         assertTrue(body.contains("\"track_clicks\":true"));
