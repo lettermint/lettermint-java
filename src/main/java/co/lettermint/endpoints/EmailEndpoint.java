@@ -27,6 +27,7 @@ public class EmailEndpoint extends Endpoint {
     private String route;
     private Map<String, Object> metadata;
     private String tag;
+    private List<Map<String, String>> tags;
     private Map<String, Object> settings;
     private String idempotencyKey;
 
@@ -52,6 +53,7 @@ public class EmailEndpoint extends Endpoint {
         this.route = null;
         this.metadata = new LinkedHashMap<>();
         this.tag = null;
+        this.tags = new ArrayList<>();
         this.settings = null;
         this.idempotencyKey = null;
     }
@@ -206,6 +208,15 @@ public class EmailEndpoint extends Endpoint {
     }
 
     /**
+     * Set reusable name-value tags for the email.
+     */
+    @SafeVarargs
+    public final EmailEndpoint tags(Map<String, String>... tags) {
+        this.tags = new ArrayList<>(Arrays.asList(tags));
+        return this;
+    }
+
+    /**
      * Set per-email settings that override the selected route.
      */
     public EmailEndpoint settings(Map<String, Object> settings) {
@@ -311,6 +322,10 @@ public class EmailEndpoint extends Endpoint {
 
         if (tag != null) {
             payload.put("tag", tag);
+        }
+
+        if (!tags.isEmpty()) {
+            payload.put("tags", tags);
         }
 
         if (settings != null) {

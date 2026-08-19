@@ -37,6 +37,9 @@ public class SendMailRequest {
     @JsonProperty("tag")
     public String tag;
 
+    @JsonProperty("tags")
+    public List<Map<String, Object>> tags;
+
     @JsonProperty("settings")
     public Map<String, Object> settings;
 

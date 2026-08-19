@@ -3,6 +3,7 @@ package co.lettermint.models.api;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MessageListData {
@@ -41,6 +42,9 @@ public class MessageListData {
 
     @JsonProperty("tag")
     public String tag;
+
+    @JsonProperty("tags")
+    public List<Map<String, Object>> tags;
 
     @JsonProperty("status_changed_at")
     public String statusChangedAt;

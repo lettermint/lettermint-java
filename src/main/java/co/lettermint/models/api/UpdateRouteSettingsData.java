@@ -17,6 +17,9 @@ public class UpdateRouteSettingsData {
     @JsonProperty("suppress_auto_responders")
     public Boolean suppressAutoResponders;
 
+    @JsonProperty("suppress_disposable_recipients")
+    public Boolean suppressDisposableRecipients;
+
     @JsonProperty("tls")
     public String tls;
 
