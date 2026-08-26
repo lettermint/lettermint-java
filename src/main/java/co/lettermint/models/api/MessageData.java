@@ -19,6 +19,9 @@ public class MessageData {
     @JsonProperty("status_changed_at")
     public String statusChangedAt;
 
+    @JsonProperty("scheduled_at")
+    public String scheduledAt;
+
     @JsonProperty("tag")
     public String tag;
 

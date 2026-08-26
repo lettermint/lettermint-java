@@ -1,6 +1,7 @@
 package co.lettermint.models.api;
 
 public final class MessageStatus {
+    public static final String SCHEDULED = "scheduled";
     public static final String PENDING = "pending";
     public static final String QUEUED = "queued";
     public static final String SUPPRESSED = "suppressed";
@@ -15,6 +16,7 @@ public final class MessageStatus {
     public static final String BLOCKED = "blocked";
     public static final String POLICYREJECTED = "policy_rejected";
     public static final String UNSUBSCRIBED = "unsubscribed";
+    public static final String CANCELED = "canceled";
 
     private MessageStatus() {}
 }
