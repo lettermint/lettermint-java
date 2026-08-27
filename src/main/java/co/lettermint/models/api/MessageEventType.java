@@ -1,6 +1,10 @@
 package co.lettermint.models.api;
 
 public final class MessageEventType {
+    public static final String SCHEDULED = "scheduled";
+    public static final String RESCHEDULED = "rescheduled";
+    public static final String CANCELED = "canceled";
+    public static final String RELEASED = "released";
     public static final String QUEUED = "queued";
     public static final String PROCESSED = "processed";
     public static final String SUPPRESSED = "suppressed";

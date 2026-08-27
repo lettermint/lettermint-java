@@ -20,6 +20,7 @@ public class EmailEndpoint extends Endpoint {
     private List<String> bcc;
     private List<String> replyTo;
     private String subject;
+    private String scheduledAt;
     private String html;
     private String text;
     private Map<String, String> headers;
@@ -46,6 +47,7 @@ public class EmailEndpoint extends Endpoint {
         this.bcc = new ArrayList<>();
         this.replyTo = new ArrayList<>();
         this.subject = null;
+        this.scheduledAt = null;
         this.html = null;
         this.text = null;
         this.headers = new LinkedHashMap<>();
@@ -104,6 +106,12 @@ public class EmailEndpoint extends Endpoint {
      */
     public EmailEndpoint subject(String subject) {
         this.subject = subject;
+        return this;
+    }
+
+    /** Set the requested delivery time for the email. */
+    public EmailEndpoint scheduledAt(String scheduledAt) {
+        this.scheduledAt = scheduledAt;
         return this;
     }
 
@@ -294,6 +302,10 @@ public class EmailEndpoint extends Endpoint {
 
         if (subject != null) {
             payload.put("subject", subject);
+        }
+
+        if (scheduledAt != null) {
+            payload.put("scheduled_at", scheduledAt);
         }
 
         if (html != null) {

@@ -137,6 +137,14 @@ public class ApiClient {
             return client.get("/messages/" + segment(messageId), MessageData.class);
         }
 
+        public RescheduleMessageResponse reschedule(String messageId, RescheduleMessageRequest payload) {
+            return client.patch("/messages/" + segment(messageId), payload, RescheduleMessageResponse.class);
+        }
+
+        public RescheduleMessageResponse cancel(String messageId) {
+            return client.post("/messages/" + segment(messageId) + "/cancel", null, RescheduleMessageResponse.class);
+        }
+
         public MessageEventsResponse events(String messageId) {
             return events(messageId, null);
         }

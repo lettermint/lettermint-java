@@ -146,6 +146,29 @@ class ApiClientTest {
     }
 
     @Test
+    void schedulesMessageChangesWithTypedResponses() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"scheduled\",\"scheduled_at\":\"2026-08-27T09:00:00Z\"}"));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"canceled\",\"scheduled_at\":null}"));
+            server.start();
+
+            ApiClient api = Lettermint.api("api-token", server.url("/v1").toString());
+            co.lettermint.models.api.RescheduleMessageRequest payload = new co.lettermint.models.api.RescheduleMessageRequest();
+            payload.scheduledAt = "2026-08-27T09:00:00Z";
+            assertEquals("scheduled", api.messages().reschedule("msg/id", payload).status);
+            assertEquals("canceled", api.messages().cancel("msg/id").status);
+
+            RecordedRequest reschedule = server.takeRequest();
+            assertEquals("PATCH", reschedule.getMethod());
+            assertEquals("/v1/messages/msg%2Fid", reschedule.getPath());
+            assertTrue(reschedule.getBody().readUtf8().contains("scheduled_at"));
+            RecordedRequest cancel = server.takeRequest();
+            assertEquals("POST", cancel.getMethod());
+            assertEquals("/v1/messages/msg%2Fid/cancel", cancel.getPath());
+        }
+    }
+
+    @Test
     void publicClientRejectsAbsoluteRequestPaths() throws Exception {
         Lettermint lettermint = new Lettermint("sending-token", "https://api.example.test/v1");
 
@@ -159,7 +182,7 @@ class ApiClientTest {
 
     @Test
     void generatedApiModelsMatchCurrentTeamSchema() {
-        assertEquals("auto_replied", co.lettermint.models.api.MessageEventType.AUTOREPLIED);
+        assertEquals("scheduled", co.lettermint.models.api.MessageEventType.SCHEDULED);
         assertEquals("message.auto_replied", co.lettermint.models.api.WebhookEvent.MESSAGEAUTOREPLIED);
         assertEquals("admin", co.lettermint.models.api.BuiltInTeamRole.ADMIN);
         assertEquals("enforced", co.lettermint.models.api.TlsPolicy.ENFORCED);
@@ -210,6 +233,7 @@ class ApiClientTest {
 
         co.lettermint.models.api.MessageListData message = new co.lettermint.models.api.MessageListData();
         message.spamScore = 2.5;
+        message.scheduledAt = "2026-08-27T09:00:00Z";
 
         assertFalse(routeUpdate.settings.generatePlaintextFallback);
         assertEquals("enforced", routeUpdate.settings.tls);
@@ -226,6 +250,7 @@ class ApiClientTest {
         assertEquals("managed_cname", domain.dkimMode);
         assertEquals("msg_123", recipient.sourceMessage.id);
         assertEquals(2.5, message.spamScore);
+        assertEquals("2026-08-27T09:00:00Z", message.scheduledAt);
     }
 
     @Test
@@ -243,6 +268,8 @@ class ApiClientTest {
         methods.put("v1.blockedFileTypes", api.getClass().getMethod("blockedFileTypes"));
         methods.put("message.index", api.messages().getClass().getMethod("list"));
         methods.put("message.show", api.messages().getClass().getMethod("retrieve", String.class));
+        methods.put("rescheduleMessage", api.messages().getClass().getMethod("reschedule", String.class, co.lettermint.models.api.RescheduleMessageRequest.class));
+        methods.put("cancelScheduledMessage", api.messages().getClass().getMethod("cancel", String.class));
         methods.put("message.events", api.messages().getClass().getMethod("events", String.class));
         methods.put("message.source", api.messages().getClass().getMethod("source", String.class));
         methods.put("message.html", api.messages().getClass().getMethod("html", String.class));

@@ -111,6 +111,10 @@ public class LettermintClient {
         return request("PUT", url(path, null), payload, responseClass, null, null);
     }
 
+    public <T> T patch(String path, Object payload, Class<T> responseClass) {
+        return request("PATCH", url(path, null), payload, responseClass, null, null);
+    }
+
     public <T> T delete(String path, Class<T> responseClass) {
         return request("DELETE", url(path, null), null, responseClass, null, null);
     }
@@ -148,6 +152,8 @@ public class LettermintClient {
             requestBuilder.post(body != null ? body : RequestBody.create(new byte[0], JSON));
         } else if ("PUT".equals(method)) {
             requestBuilder.put(body != null ? body : RequestBody.create(new byte[0], JSON));
+        } else if ("PATCH".equals(method)) {
+            requestBuilder.patch(body != null ? body : RequestBody.create(new byte[0], JSON));
         } else if ("DELETE".equals(method)) {
             requestBuilder.delete();
         } else {

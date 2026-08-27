@@ -16,6 +16,9 @@ public class MessageListData {
     @JsonProperty("status")
     public String status;
 
+    @JsonProperty("scheduled_at")
+    public String scheduledAt;
+
     @JsonProperty("spam_score")
     public Double spamScore;
 

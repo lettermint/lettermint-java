@@ -28,6 +28,9 @@ public class SendMailRequest {
     @JsonProperty("subject")
     public String subject;
 
+    @JsonProperty("scheduled_at")
+    public String scheduledAt;
+
     @JsonProperty("headers")
     public Map<String, String> headers;
 
