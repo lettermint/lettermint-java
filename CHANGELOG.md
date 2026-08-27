@@ -19,6 +19,17 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v2.4.0](https://github.com/lettermint/lettermint-java/compare/v2.3.0...v2.4.0) - 2026-08-27
+
+### What's Changed
+
+* chore(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.22.1 to 2.22.2 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/42
+* feat(api): support scheduled message delivery by @bjarn in https://github.com/lettermint/lettermint-java/pull/43
+* Sync pom.xml jackson-databind with Gradle 2.22.2 by @bjarn in https://github.com/lettermint/lettermint-java/pull/46
+* chore(deps): bump actions/setup-java from 5 to 6 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/44
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v2.3.0...v2.4.0
+
 ## [v2.3.0](https://github.com/lettermint/lettermint-java/compare/v2.2.0...v2.3.0) - 2026-08-19
 
 ### What's Changed
