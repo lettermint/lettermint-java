@@ -150,6 +150,7 @@ class ApiClientTest {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"scheduled\",\"scheduled_at\":\"2026-08-27T09:00:00Z\"}"));
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"canceled\",\"scheduled_at\":null}"));
+            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"data\":{\"message_id\":\"msg/id\",\"status\":\"queued\",\"webhook_target_count\":1}}"));
             server.start();
 
             ApiClient api = Lettermint.api("api-token", server.url("/v1").toString());
@@ -157,6 +158,7 @@ class ApiClientTest {
             payload.scheduledAt = "2026-08-27T09:00:00Z";
             assertEquals("scheduled", api.messages().reschedule("msg/id", payload).status);
             assertEquals("canceled", api.messages().cancel("msg/id").status);
+            assertEquals("queued", api.messages().process("msg/id").data.get("status"));
 
             RecordedRequest reschedule = server.takeRequest();
             assertEquals("PATCH", reschedule.getMethod());
@@ -165,6 +167,9 @@ class ApiClientTest {
             RecordedRequest cancel = server.takeRequest();
             assertEquals("POST", cancel.getMethod());
             assertEquals("/v1/messages/msg%2Fid/cancel", cancel.getPath());
+            RecordedRequest process = server.takeRequest();
+            assertEquals("POST", process.getMethod());
+            assertEquals("/v1/messages/msg%2Fid/process", process.getPath());
         }
     }
 
@@ -270,6 +275,7 @@ class ApiClientTest {
         methods.put("message.show", api.messages().getClass().getMethod("retrieve", String.class));
         methods.put("rescheduleMessage", api.messages().getClass().getMethod("reschedule", String.class, co.lettermint.models.api.RescheduleMessageRequest.class));
         methods.put("cancelScheduledMessage", api.messages().getClass().getMethod("cancel", String.class));
+        methods.put("processInboundMessage", api.messages().getClass().getMethod("process", String.class));
         methods.put("message.events", api.messages().getClass().getMethod("events", String.class));
         methods.put("message.source", api.messages().getClass().getMethod("source", String.class));
         methods.put("message.html", api.messages().getClass().getMethod("html", String.class));

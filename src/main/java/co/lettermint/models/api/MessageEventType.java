@@ -22,6 +22,7 @@ public final class MessageEventType {
     public static final String INBOUNDRECEIVED = "inbound_received";
     public static final String INBOUNDQUEUED = "inbound_queued";
     public static final String INBOUNDSPAMBLOCKED = "inbound_spam_blocked";
+    public static final String INBOUNDRELEASED = "inbound_released";
     public static final String INBOUNDPROCESSED = "inbound_processed";
     public static final String INBOUNDRETRY = "inbound_retry";
 

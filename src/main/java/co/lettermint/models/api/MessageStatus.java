@@ -4,6 +4,7 @@ public final class MessageStatus {
     public static final String SCHEDULED = "scheduled";
     public static final String PENDING = "pending";
     public static final String QUEUED = "queued";
+    public static final String QUARANTINED = "quarantined";
     public static final String SUPPRESSED = "suppressed";
     public static final String PROCESSED = "processed";
     public static final String DELIVERED = "delivered";
