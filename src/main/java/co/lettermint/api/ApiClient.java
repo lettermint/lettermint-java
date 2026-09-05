@@ -145,6 +145,10 @@ public class ApiClient {
             return client.post("/messages/" + segment(messageId) + "/cancel", null, RescheduleMessageResponse.class);
         }
 
+        public ProcessInboundMessageResponse process(String messageId) {
+            return client.post("/messages/" + segment(messageId) + "/process", null, ProcessInboundMessageResponse.class);
+        }
+
         public MessageEventsResponse events(String messageId) {
             return events(messageId, null);
         }
