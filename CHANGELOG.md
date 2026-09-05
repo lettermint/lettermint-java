@@ -19,6 +19,14 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v2.5.0](https://github.com/lettermint/lettermint-java/compare/v2.4.0...v2.5.0) - 2026-09-05
+
+### What's Changed
+
+* feat(api): support quarantined inbound message processing by @bjarn in https://github.com/lettermint/lettermint-java/pull/47
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v2.4.0...v2.5.0
+
 ## [v2.4.0](https://github.com/lettermint/lettermint-java/compare/v2.3.0...v2.4.0) - 2026-08-27
 
 ### What's Changed
