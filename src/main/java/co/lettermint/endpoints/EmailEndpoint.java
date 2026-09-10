@@ -3,6 +3,7 @@ package co.lettermint.endpoints;
 import co.lettermint.client.LettermintClient;
 import co.lettermint.models.Attachment;
 import co.lettermint.models.SendEmailResponse;
+import co.lettermint.models.MessageTag;
 import co.lettermint.models.api.SendMailRequest;
 import co.lettermint.models.api.SendMailResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -28,7 +29,7 @@ public class EmailEndpoint extends Endpoint {
     private String route;
     private Map<String, Object> metadata;
     private String tag;
-    private List<Map<String, String>> tags;
+    private List<MessageTag> tags;
     private Map<String, Object> settings;
     private String idempotencyKey;
 
@@ -211,6 +212,9 @@ public class EmailEndpoint extends Endpoint {
      * Set the email tag.
      */
     public EmailEndpoint tag(String tag) {
+        if (tag != null && tags.size() >= 20) {
+            throw new IllegalArgumentException("A legacy tag and no more than 19 message tags are permitted");
+        }
         this.tag = tag;
         return this;
     }
@@ -220,6 +224,27 @@ public class EmailEndpoint extends Endpoint {
      */
     @SafeVarargs
     public final EmailEndpoint tags(Map<String, String>... tags) {
+        MessageTag[] normalized = new MessageTag[tags.length];
+        for (int index = 0; index < tags.length; index++) {
+            normalized[index] = new MessageTag(tags[index].get("name"), tags[index].get("value"));
+        }
+        return tags(normalized);
+    }
+
+    /**
+     * Set typed reusable name-value tags for the email.
+     */
+    public final EmailEndpoint tags(MessageTag... tags) {
+        int maximum = tag == null ? 20 : 19;
+        if (tags.length > maximum) {
+            throw new IllegalArgumentException("No more than " + maximum + " message tags are permitted");
+        }
+        Set<String> names = new HashSet<>();
+        for (MessageTag messageTag : tags) {
+            if (!names.add(messageTag.getName())) {
+                throw new IllegalArgumentException("Message tag names must be unique and case-sensitive");
+            }
+        }
         this.tags = new ArrayList<>(Arrays.asList(tags));
         return this;
     }
