@@ -101,13 +101,20 @@ SendEmailResponse response = email
 
     // Metadata and tags
     .metadata(metadata)
-    .tag("welcome", "onboarding")
+    .tag("legacy-tag")
+    .tags(
+        new MessageTag("campaign", "welcome"),
+        new MessageTag("customer", "new")
+    )
 
     // Idempotency
     .idempotencyKey("unique-request-key")
 
     .send();
 ```
+
+`tag()` remains available for the legacy single tag. The previous map form of
+`tags()` also remains available.
 
 Existing constructor-based sending usage still works:
 

@@ -1,6 +1,7 @@
 package co.lettermint;
 
 import co.lettermint.models.SendEmailResponse;
+import co.lettermint.models.MessageTag;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -262,5 +263,37 @@ class EmailEndpointTest {
 
         assertTrue(body.contains("\"key1\":\"value1\""));
         assertTrue(body.contains("\"key2\":123"));
+    }
+
+    @Test
+    void testTypedMessageTags() throws Exception {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("{\"message_id\": \"msg_123\", \"status\": \"queued\"}")
+                .setHeader("Content-Type", "application/json"));
+
+        lettermint.email()
+                .from("sender@example.com")
+                .to("recipient@example.com")
+                .subject("Test")
+                .text("Test")
+                .tags(new MessageTag("campaign", "welcome"), new MessageTag("customer", "new"))
+                .send();
+
+        String body = mockWebServer.takeRequest().getBody().readUtf8();
+        assertTrue(body.contains("\"tags\":[{\"name\":\"campaign\",\"value\":\"welcome\"}"));
+    }
+
+    @Test
+    void testMessageTagValidation() {
+        assertThrows(IllegalArgumentException.class, () -> new MessageTag("invalid name", "value"));
+        assertThrows(IllegalArgumentException.class, () -> new MessageTag("__LETTERMINT_internal", "value"));
+        assertThrows(IllegalArgumentException.class, () -> lettermint.email().tags(
+                new MessageTag("same", "one"), new MessageTag("same", "two")));
+
+        MessageTag[] tags = new MessageTag[20];
+        for (int index = 0; index < tags.length; index++) {
+            tags[index] = new MessageTag("tag_" + index, "value");
+        }
+        assertThrows(IllegalArgumentException.class, () -> lettermint.email().tag("legacy").tags(tags));
     }
 }
