@@ -19,6 +19,15 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v2.6.0](https://github.com/lettermint/lettermint-java/compare/v2.5.0...v2.6.0) - 2026-09-14
+
+### What's Changed
+
+* feat: add typed message tags by @bjarn in https://github.com/lettermint/lettermint-java/pull/48
+* chore: add all team as code owners by @bjarn in https://github.com/lettermint/lettermint-java/pull/49
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v2.5.0...v2.6.0
+
 ## [v2.5.0](https://github.com/lettermint/lettermint-java/compare/v2.4.0...v2.5.0) - 2026-09-05
 
 ### What's Changed
