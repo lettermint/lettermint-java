@@ -28,6 +28,9 @@ public class RouteData {
     @JsonProperty("inbound_address")
     public String inboundAddress;
 
+    @JsonProperty("inbound_mx_hostname")
+    public String inboundMxHostname;
+
     @JsonProperty("inbound_domain")
     public String inboundDomain;
 

@@ -6,9 +6,6 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class StoreWebhookData {
-    @JsonProperty("route_id")
-    public String routeId;
-
     @JsonProperty("name")
     public String name;
 
@@ -23,4 +20,19 @@ public class StoreWebhookData {
 
     @JsonProperty("include_machine_events")
     public Boolean includeMachineEvents;
+
+    @JsonProperty("scope")
+    public String scope;
+
+    @JsonProperty("project_ids")
+    public List<String> projectIds;
+
+    @JsonProperty("route_ids")
+    public List<String> routeIds;
+
+    @JsonProperty("route_id")
+    public String routeId;
+
+    @JsonProperty("delivery_mode_filter")
+    public String deliveryModeFilter;
 }

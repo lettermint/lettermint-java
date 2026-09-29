@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class WebhookData {
+public class WebhookSecretData {
     @JsonProperty("id")
     public String id;
 
@@ -35,6 +35,9 @@ public class WebhookData {
 
     @JsonProperty("include_machine_events")
     public Boolean includeMachineEvents;
+
+    @JsonProperty("secret")
+    public String secret;
 
     @JsonProperty("last_called_at")
     public String lastCalledAt;

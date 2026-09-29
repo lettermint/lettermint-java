@@ -15,6 +15,10 @@ public final class WebhookEvent {
     public static final String MESSAGECLICKED = "message.clicked";
     public static final String MESSAGEINBOUND = "message.inbound";
     public static final String MESSAGEPOLICYREJECTED = "message.policy_rejected";
+    public static final String MESSAGESCHEDULED = "message.scheduled";
+    public static final String MESSAGERESCHEDULED = "message.rescheduled";
+    public static final String MESSAGECANCELED = "message.canceled";
+    public static final String MESSAGERELEASED = "message.released";
     public static final String SUPPRESSIONADDED = "suppression.added";
     public static final String SUPPRESSIONREMOVED = "suppression.removed";
     public static final String WEBHOOKTEST = "webhook.test";

@@ -9,6 +9,15 @@ public class WebhookListData {
     @JsonProperty("id")
     public String id;
 
+    @JsonProperty("scope")
+    public String scope;
+
+    @JsonProperty("project_ids")
+    public List<String> projectIds;
+
+    @JsonProperty("route_ids")
+    public List<String> routeIds;
+
     @JsonProperty("route_id")
     public String routeId;
 

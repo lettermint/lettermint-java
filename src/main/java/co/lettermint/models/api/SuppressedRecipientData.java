@@ -20,6 +20,9 @@ public class SuppressedRecipientData {
     @JsonProperty("scope")
     public String scope;
 
+    @JsonProperty("applies_to")
+    public String appliesTo;
+
     @JsonProperty("project_id")
     public String projectId;
 
@@ -31,7 +34,4 @@ public class SuppressedRecipientData {
 
     @JsonProperty("created_at")
     public String createdAt;
-
-    @JsonProperty("updated_at")
-    public String updatedAt;
 }

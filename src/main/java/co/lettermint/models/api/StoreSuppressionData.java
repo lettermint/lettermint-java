@@ -23,4 +23,7 @@ public class StoreSuppressionData {
 
     @JsonProperty("project_id")
     public String projectId;
+
+    @JsonProperty("applies_to")
+    public String appliesTo;
 }
