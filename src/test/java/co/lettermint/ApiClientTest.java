@@ -253,6 +253,9 @@ class ApiClientTest {
         delivery.sandbox = true;
         co.lettermint.models.api.StoreWebhookData webhook = new co.lettermint.models.api.StoreWebhookData();
         webhook.deliveryModeFilter = co.lettermint.models.api.WebhookDeliveryModeFilter.BOTH;
+        co.lettermint.models.api.CursorPaginator cursor = new co.lettermint.models.api.CursorPaginator();
+        cursor.perPage = 25;
+        cursor.data = Collections.emptyList();
 
         assertFalse(routeUpdate.settings.generatePlaintextFallback);
         assertEquals("enforced", routeUpdate.settings.tls);
@@ -275,6 +278,8 @@ class ApiClientTest {
         assertEquals("sandbox", project.deliveryMode);
         assertTrue(delivery.sandbox);
         assertEquals("both", webhook.deliveryModeFilter);
+        assertEquals(25, cursor.perPage);
+        assertTrue(cursor.data.isEmpty());
     }
 
     @Test
