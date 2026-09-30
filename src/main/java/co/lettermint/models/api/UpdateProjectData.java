@@ -16,4 +16,7 @@ public class UpdateProjectData {
 
     @JsonProperty("default_route_id")
     public String defaultRouteId;
+
+    @JsonProperty("delivery_mode")
+    public String deliveryMode;
 }

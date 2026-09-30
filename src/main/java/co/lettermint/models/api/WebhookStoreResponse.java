@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WebhookStoreResponse {
     @JsonProperty("data")
-    public WebhookData data;
+    public WebhookSecretData data;
 
     @JsonProperty("message")
     public String message;

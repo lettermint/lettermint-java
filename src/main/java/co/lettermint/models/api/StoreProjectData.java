@@ -16,4 +16,7 @@ public class StoreProjectData {
 
     @JsonProperty("short_token")
     public Boolean shortToken;
+
+    @JsonProperty("delivery_mode")
+    public String deliveryMode;
 }

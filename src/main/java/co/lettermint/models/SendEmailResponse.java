@@ -15,6 +15,12 @@ public class SendEmailResponse {
     @JsonProperty("status")
     private String status;
 
+    @JsonProperty("sandbox")
+    private Boolean sandbox;
+
+    @JsonProperty("sandbox_result")
+    private String sandboxResult;
+
     public SendEmailResponse() {
     }
 
@@ -39,11 +45,29 @@ public class SendEmailResponse {
         this.status = status;
     }
 
+    public Boolean getSandbox() {
+        return sandbox;
+    }
+
+    public void setSandbox(Boolean sandbox) {
+        this.sandbox = sandbox;
+    }
+
+    public String getSandboxResult() {
+        return sandboxResult;
+    }
+
+    public void setSandboxResult(String sandboxResult) {
+        this.sandboxResult = sandboxResult;
+    }
+
     @Override
     public String toString() {
         return "SendEmailResponse{" +
                 "messageId='" + messageId + '\'' +
                 ", status='" + status + '\'' +
+                ", sandbox=" + sandbox +
+                ", sandboxResult='" + sandboxResult + '\'' +
                 '}';
     }
 }

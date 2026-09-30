@@ -50,4 +50,7 @@ public class ProjectData {
 
     @JsonProperty("updated_at")
     public String updatedAt;
+
+    @JsonProperty("delivery_mode")
+    public String deliveryMode;
 }

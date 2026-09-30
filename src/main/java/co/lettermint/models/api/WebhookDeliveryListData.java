@@ -14,6 +14,15 @@ public class WebhookDeliveryListData {
     @JsonProperty("event_type")
     public String eventType;
 
+    @JsonProperty("source_scope")
+    public String sourceScope;
+
+    @JsonProperty("source_project_id")
+    public String sourceProjectId;
+
+    @JsonProperty("source_route_id")
+    public String sourceRouteId;
+
     @JsonProperty("status")
     public String status;
 

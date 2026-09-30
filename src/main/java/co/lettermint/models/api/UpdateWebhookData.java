@@ -20,4 +20,19 @@ public class UpdateWebhookData {
 
     @JsonProperty("include_machine_events")
     public Boolean includeMachineEvents;
+
+    @JsonProperty("scope")
+    public String scope;
+
+    @JsonProperty("project_ids")
+    public List<String> projectIds;
+
+    @JsonProperty("route_ids")
+    public List<String> routeIds;
+
+    @JsonProperty("route_id")
+    public String routeId;
+
+    @JsonProperty("delivery_mode_filter")
+    public String deliveryModeFilter;
 }

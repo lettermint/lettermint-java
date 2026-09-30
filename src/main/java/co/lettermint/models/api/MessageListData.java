@@ -54,4 +54,10 @@ public class MessageListData {
 
     @JsonProperty("created_at")
     public String createdAt;
+
+    @JsonProperty("delivery_mode")
+    public String deliveryMode;
+
+    @JsonProperty("sandbox_result")
+    public String sandboxResult;
 }

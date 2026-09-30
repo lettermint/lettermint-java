@@ -10,4 +10,7 @@ public class MessageRecipientData {
 
     @JsonProperty("name")
     public String name;
+
+    @JsonProperty("sandbox_result")
+    public String sandboxResult;
 }

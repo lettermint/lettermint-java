@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class SendMailResponse {
+public class CancelScheduledMessageResponse {
     @JsonProperty("message_id")
     public String messageId;
 
@@ -13,10 +13,4 @@ public class SendMailResponse {
 
     @JsonProperty("scheduled_at")
     public String scheduledAt;
-
-    @JsonProperty("sandbox")
-    public Boolean sandbox;
-
-    @JsonProperty("sandbox_result")
-    public String sandboxResult;
 }

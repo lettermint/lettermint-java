@@ -31,6 +31,7 @@ public class EmailEndpoint extends Endpoint {
     private String tag;
     private List<MessageTag> tags;
     private Map<String, Object> settings;
+    private String sandboxResult;
     private String idempotencyKey;
 
     public EmailEndpoint(LettermintClient client) {
@@ -58,6 +59,7 @@ public class EmailEndpoint extends Endpoint {
         this.tag = null;
         this.tags = new ArrayList<>();
         this.settings = null;
+        this.sandboxResult = null;
         this.idempotencyKey = null;
     }
 
@@ -258,6 +260,14 @@ public class EmailEndpoint extends Endpoint {
     }
 
     /**
+     * Select the simulated result for a Sandbox project message.
+     */
+    public EmailEndpoint sandboxResult(String sandboxResult) {
+        this.sandboxResult = sandboxResult;
+        return this;
+    }
+
+    /**
      * Set an idempotency key for the request.
      */
     public EmailEndpoint idempotencyKey(String key) {
@@ -367,6 +377,10 @@ public class EmailEndpoint extends Endpoint {
 
         if (settings != null) {
             payload.put("settings", settings);
+        }
+
+        if (sandboxResult != null) {
+            payload.put("sandbox_result", sandboxResult);
         }
 
         return payload;

@@ -54,4 +54,7 @@ public class SendMailRequest {
 
     @JsonProperty("attachments")
     public List<Map<String, Object>> attachments;
+
+    @JsonProperty("sandbox_result")
+    public String sandboxResult;
 }

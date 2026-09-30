@@ -74,13 +74,14 @@ class ApiClientTest {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(new MockResponse()
                     .setHeader("Content-Type", "application/json")
-                    .setBody("[{\"message_id\":\"msg_123\",\"status\":\"queued\"}]"));
+                    .setBody("[{\"message_id\":\"msg_123\",\"status\":\"queued\",\"sandbox\":true,\"sandbox_result\":\"hard_bounced\"}]"));
             server.start();
 
             SendMailRequest payload = new SendMailRequest();
             payload.fromValue = "from@example.com";
             payload.to = Collections.singletonList("to@example.com");
             payload.subject = "Hello";
+            payload.sandboxResult = co.lettermint.models.api.SandboxResult.HARDBOUNCED;
 
             List<SendMailResponse> response = Lettermint
                     .email("sending-token", server.url("/v1").toString())
@@ -91,7 +92,10 @@ class ApiClientTest {
             assertEquals("/v1/send/batch", request.getPath());
             assertEquals("sending-token", request.getHeader("x-lettermint-token"));
             assertEquals("batch-key", request.getHeader("Idempotency-Key"));
+            assertTrue(request.getBody().readUtf8().contains("\"sandbox_result\":\"hard_bounced\""));
             assertEquals("msg_123", response.get(0).messageId);
+            assertTrue(response.get(0).sandbox);
+            assertEquals("hard_bounced", response.get(0).sandboxResult);
         }
     }
 
@@ -232,13 +236,26 @@ class ApiClientTest {
         co.lettermint.models.api.DomainData domain = new co.lettermint.models.api.DomainData();
         domain.dkimMode = co.lettermint.models.api.DkimMode.MANAGEDCNAME;
 
-        co.lettermint.models.api.SuppressedRecipientData recipient = new co.lettermint.models.api.SuppressedRecipientData();
-        recipient.sourceMessage = new co.lettermint.models.api.SuppressionSourceMessageData();
-        recipient.sourceMessage.id = "msg_123";
+        co.lettermint.models.api.SuppressedRecipientData suppressedRecipient = new co.lettermint.models.api.SuppressedRecipientData();
+        suppressedRecipient.sourceMessage = new co.lettermint.models.api.SuppressionSourceMessageData();
+        suppressedRecipient.sourceMessage.id = "msg_123";
 
         co.lettermint.models.api.MessageListData message = new co.lettermint.models.api.MessageListData();
         message.spamScore = 2.5;
         message.scheduledAt = "2026-08-27T09:00:00Z";
+
+        co.lettermint.models.api.SendMailRequest sandboxSend = new co.lettermint.models.api.SendMailRequest();
+        sandboxSend.sandboxResult = co.lettermint.models.api.SandboxResult.CLICKED;
+        co.lettermint.models.api.MessageRecipientData recipient = new co.lettermint.models.api.MessageRecipientData();
+        recipient.sandboxResult = co.lettermint.models.api.SandboxResult.CLICKED;
+        project.deliveryMode = co.lettermint.models.api.DeliveryMode.SANDBOX;
+        co.lettermint.models.api.WebhookDeliveryData delivery = new co.lettermint.models.api.WebhookDeliveryData();
+        delivery.sandbox = true;
+        co.lettermint.models.api.StoreWebhookData webhook = new co.lettermint.models.api.StoreWebhookData();
+        webhook.deliveryModeFilter = co.lettermint.models.api.WebhookDeliveryModeFilter.BOTH;
+        co.lettermint.models.api.CursorPaginator cursor = new co.lettermint.models.api.CursorPaginator();
+        cursor.perPage = 25;
+        cursor.data = Collections.emptyList();
 
         assertFalse(routeUpdate.settings.generatePlaintextFallback);
         assertEquals("enforced", routeUpdate.settings.tls);
@@ -246,16 +263,23 @@ class ApiClientTest {
         assertFalse(projectUpdate.redactEmailContent);
         assertTrue(projectCreate.shortToken);
         assertTrue(project.redactEmailContent);
-        assertEquals("global", co.lettermint.models.api.SuppressionScope.GLOBAL);
+        assertEquals("team", co.lettermint.models.api.SuppressionScope.TEAM);
         assertEquals("application/x-msdownload", blockedFileTypes.mimeTypes.get(0));
         assertEquals(300000, team.includedVolume);
         assertTrue(role.assignable);
         assertEquals("members:manage", role.permissions.get(0));
         assertEquals("role_123", assignment.roleId);
         assertEquals("managed_cname", domain.dkimMode);
-        assertEquals("msg_123", recipient.sourceMessage.id);
+        assertEquals("msg_123", suppressedRecipient.sourceMessage.id);
         assertEquals(2.5, message.spamScore);
         assertEquals("2026-08-27T09:00:00Z", message.scheduledAt);
+        assertEquals("clicked", sandboxSend.sandboxResult);
+        assertEquals("clicked", recipient.sandboxResult);
+        assertEquals("sandbox", project.deliveryMode);
+        assertTrue(delivery.sandbox);
+        assertEquals("both", webhook.deliveryModeFilter);
+        assertEquals(25, cursor.perPage);
+        assertTrue(cursor.data.isEmpty());
     }
 
     @Test

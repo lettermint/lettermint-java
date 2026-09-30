@@ -141,8 +141,8 @@ public class ApiClient {
             return client.patch("/messages/" + segment(messageId), payload, RescheduleMessageResponse.class);
         }
 
-        public RescheduleMessageResponse cancel(String messageId) {
-            return client.post("/messages/" + segment(messageId) + "/cancel", null, RescheduleMessageResponse.class);
+        public CancelScheduledMessageResponse cancel(String messageId) {
+            return client.post("/messages/" + segment(messageId) + "/cancel", null, CancelScheduledMessageResponse.class);
         }
 
         public ProcessInboundMessageResponse process(String messageId) {

@@ -60,7 +60,7 @@ class EmailEndpointTest {
     @Test
     void testEmailWithAllOptions() throws Exception {
         mockWebServer.enqueue(new MockResponse()
-                .setBody("{\"message_id\": \"msg_456\", \"status\": \"queued\"}")
+                .setBody("{\"message_id\":\"msg_456\",\"status\":\"queued\",\"sandbox\":true,\"sandbox_result\":\"deferred\"}")
                 .setHeader("Content-Type", "application/json"));
 
         Map<String, String> headers = new HashMap<>();
@@ -98,10 +98,13 @@ class EmailEndpointTest {
                 .tag("welcome")
                 .tags(tags)
                 .settings(settings)
+                .sandboxResult(co.lettermint.models.api.SandboxResult.DEFERRED)
                 .idempotencyKey("unique-key-123")
                 .send();
 
         assertEquals("msg_456", response.getMessageId());
+        assertTrue(response.getSandbox());
+        assertEquals("deferred", response.getSandboxResult());
 
         RecordedRequest request = mockWebServer.takeRequest();
         assertEquals("unique-key-123", request.getHeader("Idempotency-Key"));
@@ -124,6 +127,7 @@ class EmailEndpointTest {
         assertTrue(body.contains("\"tls\":\"enforced\""));
         assertTrue(body.contains("\"Message-ID\":\"<ticket-123@example.com>\""));
         assertTrue(body.contains("\"X-LM-Preserve-Message-ID\":\"true\""));
+        assertTrue(body.contains("\"sandbox_result\":\"deferred\""));
         assertTrue(body.contains("{\"filename\":\"document.pdf\",\"content\":\"base64content\"}"));
         assertTrue(body.contains("{\"filename\":\"logo.png\",\"content\":\"base64logo\",\"content_id\":\"logo-cid\"}"));
         assertTrue(body.contains("{\"filename\":\"invite.ics\",\"content\":\"base64icalFile\",\"content_type\":\"text/calendar; method=REQUEST\"}"));
