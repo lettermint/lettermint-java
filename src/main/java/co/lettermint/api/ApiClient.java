@@ -38,6 +38,10 @@ public class ApiClient {
         return client.get("/blocked-file-types", BlockedFileTypesResponse.class);
     }
 
+    public AnalyticsResponse analytics(AnalyticsRequest payload) {
+        return client.post("/analytics", payload, AnalyticsResponse.class);
+    }
+
     public DomainsEndpoint domains() {
         return domains;
     }
@@ -171,6 +175,25 @@ public class ApiClient {
     }
 
     public static class ProjectsEndpoint {
+        public GetReportForwardingResponse retrieveReportForwarding(String projectId) {
+            return client.get("/projects/" + segment(projectId) + "/report-forwarding", GetReportForwardingResponse.class);
+        }
+
+        public UpdateReportForwardingResponse updateReportForwarding(String projectId, ReportForwardingRequest payload) {
+            return client.put("/projects/" + segment(projectId) + "/report-forwarding", payload, UpdateReportForwardingResponse.class);
+        }
+
+        public void deleteReportForwarding(String projectId) {
+            client.delete("/projects/" + segment(projectId) + "/report-forwarding", Void.class);
+        }
+
+        public VerifyReportForwardingResponse verifyReportForwarding(String projectId, VerifyReportForwardingRequest payload) {
+            return client.post("/projects/" + segment(projectId) + "/report-forwarding/verify", payload, VerifyReportForwardingResponse.class);
+        }
+
+        public ResendReportForwardingCodeResponse resendReportForwardingCode(String projectId) {
+            return client.post("/projects/" + segment(projectId) + "/report-forwarding/resend-code", null, ResendReportForwardingCodeResponse.class);
+        }
         private final LettermintClient client;
 
         ProjectsEndpoint(LettermintClient client) {

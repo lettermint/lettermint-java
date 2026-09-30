@@ -16,4 +16,7 @@ public class SuppressionDestroyResponse {
 
     @JsonProperty("confidence")
     public Double confidence;
+
+    @JsonProperty("ticket_identifier")
+    public String ticketIdentifier;
 }

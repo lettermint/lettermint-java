@@ -294,6 +294,12 @@ class ApiClientTest {
         methods.put("domain.verifySpecificDnsRecord", api.domains().getClass().getMethod("verifyDnsRecord", String.class, String.class));
         methods.put("domain.updateProjects", api.domains().getClass().getMethod("updateProjects", String.class, co.lettermint.models.api.UpdateDomainProjectsData.class));
         methods.put("v1.ping", api.getClass().getMethod("ping"));
+        methods.put("v1.analytics", api.getClass().getMethod("analytics", co.lettermint.models.api.AnalyticsRequest.class));
+        methods.put("getReportForwarding", api.projects().getClass().getMethod("retrieveReportForwarding", String.class));
+        methods.put("updateReportForwarding", api.projects().getClass().getMethod("updateReportForwarding", String.class, co.lettermint.models.api.ReportForwardingRequest.class));
+        methods.put("deleteReportForwarding", api.projects().getClass().getMethod("deleteReportForwarding", String.class));
+        methods.put("verifyReportForwarding", api.projects().getClass().getMethod("verifyReportForwarding", String.class, co.lettermint.models.api.VerifyReportForwardingRequest.class));
+        methods.put("resendReportForwardingCode", api.projects().getClass().getMethod("resendReportForwardingCode", String.class));
         methods.put("v1.blockedFileTypes", api.getClass().getMethod("blockedFileTypes"));
         methods.put("message.index", api.messages().getClass().getMethod("list"));
         methods.put("message.show", api.messages().getClass().getMethod("retrieve", String.class));

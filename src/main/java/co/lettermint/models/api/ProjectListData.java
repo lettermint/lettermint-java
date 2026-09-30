@@ -11,6 +11,9 @@ public class ProjectListData {
     @JsonProperty("name")
     public String name;
 
+    @JsonProperty("delivery_mode")
+    public String deliveryMode;
+
     @JsonProperty("smtp_enabled")
     public Boolean smtpEnabled;
 

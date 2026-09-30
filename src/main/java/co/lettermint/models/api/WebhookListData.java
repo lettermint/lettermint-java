@@ -33,6 +33,9 @@ public class WebhookListData {
     @JsonProperty("enabled")
     public Boolean enabled;
 
+    @JsonProperty("delivery_mode_filter")
+    public String deliveryModeFilter;
+
     @JsonProperty("last_called_at")
     public String lastCalledAt;
 

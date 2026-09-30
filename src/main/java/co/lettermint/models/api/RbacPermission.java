@@ -35,6 +35,7 @@ public final class RbacPermission {
     public static final String WEBHOOKSDELETE = "webhooks:delete";
     public static final String WEBHOOKSROTATESECRET = "webhooks:rotate_secret";
     public static final String STATSREAD = "stats:read";
+    public static final String ANALYTICSREAD = "analytics:read";
     public static final String MESSAGESREAD = "messages:read";
     public static final String MESSAGESREADCONTENT = "messages:read_content";
     public static final String MESSAGESSEND = "messages:send";
