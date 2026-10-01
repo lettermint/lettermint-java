@@ -19,6 +19,20 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v2.7.0](https://github.com/lettermint/lettermint-java/compare/v2.6.0...v2.7.0) - 2026-10-01
+
+### What's Changed
+
+* Use the SDK release bot for changelog updates by @bjarn in https://github.com/lettermint/lettermint-java/pull/50
+* chore(deps): bump actions/create-github-app-token from 2.2.2 to 3.2.0 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/51
+* Read the release bot identity from GitHub by @bjarn in https://github.com/lettermint/lettermint-java/pull/52
+* feat(api): add sandbox delivery contracts by @bjarn in https://github.com/lettermint/lettermint-java/pull/53
+* feat(api): add analytics and project report forwarding by @bjarn in https://github.com/lettermint/lettermint-java/pull/54
+* chore(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.22.2 to 2.22.3 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/55
+* fix(api): preserve cancellation ABI and expose inbound route domains by @bjarn in https://github.com/lettermint/lettermint-java/pull/57
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v2.6.0...v2.7.0
+
 ## [v2.6.0](https://github.com/lettermint/lettermint-java/compare/v2.5.0...v2.6.0) - 2026-09-14
 
 ### What's Changed
