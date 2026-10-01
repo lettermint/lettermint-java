@@ -176,6 +176,9 @@ public class LettermintClient {
             }
 
             if (responseClass != null) {
+                if (response.code() == 204 && responseClass == Void.class) {
+                    return null;
+                }
                 return objectMapper.readValue(responseBody, responseClass);
             }
             return objectMapper.readValue(responseBody, responseType);

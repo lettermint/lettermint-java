@@ -11,12 +11,15 @@ public class StoreProjectData {
     @JsonProperty("smtp_enabled")
     public Boolean smtpEnabled;
 
+    @JsonProperty("delivery_mode")
+    public String deliveryMode;
+
     @JsonProperty("initial_routes")
     public String initialRoutes;
 
     @JsonProperty("short_token")
     public Boolean shortToken;
 
-    @JsonProperty("delivery_mode")
-    public String deliveryMode;
+    @JsonProperty("redact_email_content")
+    public Boolean redactEmailContent;
 }

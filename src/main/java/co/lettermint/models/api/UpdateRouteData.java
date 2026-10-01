@@ -13,4 +13,13 @@ public class UpdateRouteData {
 
     @JsonProperty("inbound_settings")
     public UpdateRouteInboundSettingsData inboundSettings;
+
+    @JsonProperty("inbound_domain")
+    public String inboundDomain;
+
+    @JsonProperty("inbound_spam_threshold")
+    public Double inboundSpamThreshold;
+
+    @JsonProperty("attachment_delivery")
+    public String attachmentDelivery;
 }

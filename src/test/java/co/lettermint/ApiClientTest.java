@@ -154,14 +154,18 @@ class ApiClientTest {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"scheduled\",\"scheduled_at\":\"2026-08-27T09:00:00Z\"}"));
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"canceled\",\"scheduled_at\":null}"));
-            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"data\":{\"message_id\":\"msg/id\",\"status\":\"queued\",\"webhook_target_count\":1}}"));
+            server.enqueue(new MockResponse().setResponseCode(202).setHeader("Content-Type", "application/json").setBody("{\"data\":{\"message_id\":\"msg/id\",\"status\":\"queued\",\"webhook_target_count\":1}}"));
             server.start();
 
             ApiClient api = Lettermint.api("api-token", server.url("/v1").toString());
             co.lettermint.models.api.RescheduleMessageRequest payload = new co.lettermint.models.api.RescheduleMessageRequest();
             payload.scheduledAt = "2026-08-27T09:00:00Z";
             assertEquals("scheduled", api.messages().reschedule("msg/id", payload).status);
-            assertEquals("canceled", api.messages().cancel("msg/id").status);
+            co.lettermint.models.api.CancelScheduledMessageResponse cancelResponse = api.messages().cancel("msg/id");
+            co.lettermint.models.api.RescheduleMessageResponse legacyResponse = cancelResponse;
+            assertEquals("msg/id", legacyResponse.messageId);
+            assertEquals("canceled", legacyResponse.status);
+            assertNull(legacyResponse.scheduledAt);
             assertEquals("queued", api.messages().process("msg/id").data.get("status"));
 
             RecordedRequest reschedule = server.takeRequest();
@@ -171,6 +175,8 @@ class ApiClientTest {
             RecordedRequest cancel = server.takeRequest();
             assertEquals("POST", cancel.getMethod());
             assertEquals("/v1/messages/msg%2Fid/cancel", cancel.getPath());
+            assertEquals("Bearer api-token", cancel.getHeader("Authorization"));
+            assertEquals("", cancel.getBody().readUtf8());
             RecordedRequest process = server.takeRequest();
             assertEquals("POST", process.getMethod());
             assertEquals("/v1/messages/msg%2Fid/process", process.getPath());
@@ -294,6 +300,12 @@ class ApiClientTest {
         methods.put("domain.verifySpecificDnsRecord", api.domains().getClass().getMethod("verifyDnsRecord", String.class, String.class));
         methods.put("domain.updateProjects", api.domains().getClass().getMethod("updateProjects", String.class, co.lettermint.models.api.UpdateDomainProjectsData.class));
         methods.put("v1.ping", api.getClass().getMethod("ping"));
+        methods.put("v1.analytics", api.getClass().getMethod("analytics", co.lettermint.models.api.AnalyticsRequest.class));
+        methods.put("getReportForwarding", api.projects().getClass().getMethod("retrieveReportForwarding", String.class));
+        methods.put("updateReportForwarding", api.projects().getClass().getMethod("updateReportForwarding", String.class, co.lettermint.models.api.ReportForwardingRequest.class));
+        methods.put("deleteReportForwarding", api.projects().getClass().getMethod("deleteReportForwarding", String.class));
+        methods.put("verifyReportForwarding", api.projects().getClass().getMethod("verifyReportForwarding", String.class, co.lettermint.models.api.VerifyReportForwardingRequest.class));
+        methods.put("resendReportForwardingCode", api.projects().getClass().getMethod("resendReportForwardingCode", String.class));
         methods.put("v1.blockedFileTypes", api.getClass().getMethod("blockedFileTypes"));
         methods.put("message.index", api.messages().getClass().getMethod("list"));
         methods.put("message.show", api.messages().getClass().getMethod("retrieve", String.class));

@@ -13,4 +13,19 @@ public class StoreRouteData {
 
     @JsonProperty("slug")
     public String slug;
+
+    @JsonProperty("settings")
+    public UpdateRouteSettingsData settings;
+
+    @JsonProperty("inbound_settings")
+    public UpdateRouteInboundSettingsData inboundSettings;
+
+    @JsonProperty("inbound_domain")
+    public String inboundDomain;
+
+    @JsonProperty("inbound_spam_threshold")
+    public Double inboundSpamThreshold;
+
+    @JsonProperty("attachment_delivery")
+    public String attachmentDelivery;
 }

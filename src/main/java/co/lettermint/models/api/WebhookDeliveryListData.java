@@ -26,6 +26,9 @@ public class WebhookDeliveryListData {
     @JsonProperty("status")
     public String status;
 
+    @JsonProperty("sandbox")
+    public Boolean sandbox;
+
     @JsonProperty("attempt_number")
     public Integer attemptNumber;
 
