@@ -122,7 +122,12 @@ public class ApiClient {
         }
     }
 
-    public static class MessagesEndpoint {
+    // Keep the pre-v2.6 JVM descriptor through javac's covariant return bridge.
+    private interface ScheduledMessageCancellation {
+        RescheduleMessageResponse cancel(String messageId);
+    }
+
+    public static class MessagesEndpoint implements ScheduledMessageCancellation {
         private final LettermintClient client;
 
         MessagesEndpoint(LettermintClient client) {
@@ -145,6 +150,7 @@ public class ApiClient {
             return client.patch("/messages/" + segment(messageId), payload, RescheduleMessageResponse.class);
         }
 
+        @Override
         public CancelScheduledMessageResponse cancel(String messageId) {
             return client.post("/messages/" + segment(messageId) + "/cancel", null, CancelScheduledMessageResponse.class);
         }
