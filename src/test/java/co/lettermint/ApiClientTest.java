@@ -154,14 +154,18 @@ class ApiClientTest {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"scheduled\",\"scheduled_at\":\"2026-08-27T09:00:00Z\"}"));
             server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"message_id\":\"msg/id\",\"status\":\"canceled\",\"scheduled_at\":null}"));
-            server.enqueue(new MockResponse().setHeader("Content-Type", "application/json").setBody("{\"data\":{\"message_id\":\"msg/id\",\"status\":\"queued\",\"webhook_target_count\":1}}"));
+            server.enqueue(new MockResponse().setResponseCode(202).setHeader("Content-Type", "application/json").setBody("{\"data\":{\"message_id\":\"msg/id\",\"status\":\"queued\",\"webhook_target_count\":1}}"));
             server.start();
 
             ApiClient api = Lettermint.api("api-token", server.url("/v1").toString());
             co.lettermint.models.api.RescheduleMessageRequest payload = new co.lettermint.models.api.RescheduleMessageRequest();
             payload.scheduledAt = "2026-08-27T09:00:00Z";
             assertEquals("scheduled", api.messages().reschedule("msg/id", payload).status);
-            assertEquals("canceled", api.messages().cancel("msg/id").status);
+            co.lettermint.models.api.CancelScheduledMessageResponse cancelResponse = api.messages().cancel("msg/id");
+            co.lettermint.models.api.RescheduleMessageResponse legacyResponse = cancelResponse;
+            assertEquals("msg/id", legacyResponse.messageId);
+            assertEquals("canceled", legacyResponse.status);
+            assertNull(legacyResponse.scheduledAt);
             assertEquals("queued", api.messages().process("msg/id").data.get("status"));
 
             RecordedRequest reschedule = server.takeRequest();
@@ -171,6 +175,8 @@ class ApiClientTest {
             RecordedRequest cancel = server.takeRequest();
             assertEquals("POST", cancel.getMethod());
             assertEquals("/v1/messages/msg%2Fid/cancel", cancel.getPath());
+            assertEquals("Bearer api-token", cancel.getHeader("Authorization"));
+            assertEquals("", cancel.getBody().readUtf8());
             RecordedRequest process = server.takeRequest();
             assertEquals("POST", process.getMethod());
             assertEquals("/v1/messages/msg%2Fid/process", process.getPath());
