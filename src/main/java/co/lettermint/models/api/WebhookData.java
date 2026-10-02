@@ -27,6 +27,9 @@ public class WebhookData {
     @JsonProperty("url")
     public String url;
 
+    @JsonProperty("has_basic_auth")
+    public boolean hasBasicAuth;
+
     @JsonProperty("events")
     public List<String> events;
 
