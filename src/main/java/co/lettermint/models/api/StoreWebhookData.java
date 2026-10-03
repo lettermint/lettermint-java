@@ -12,6 +12,10 @@ public class StoreWebhookData {
     @JsonProperty("url")
     public String url;
 
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @JsonProperty("basic_auth")
+    public OptionalNullable<WebhookBasicAuthData> basicAuth;
+
     @JsonProperty("events")
     public List<String> events;
 
