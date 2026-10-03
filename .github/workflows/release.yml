@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [8, 11, 17, 21]
+        java: [17, 21, 25]
 
     steps:
       - name: Checkout code
@@ -36,7 +36,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew build --no-daemon
 
   release:
     name: Release
@@ -71,8 +71,14 @@ jobs:
           fi
 
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
-          perl -0pi -e "s/^version = '.*'$/version = '$version'/m" build.gradle
-          RELEASE_VERSION="$version" perl -0pi -e 's|(<artifactId>lettermint</artifactId>\s*<version>)[^<]+(</version>)|$1$ENV{RELEASE_VERSION}$2|' pom.xml
+
+      # build.gradle reads the version from -PreleaseVersion; check the jar before publishing.
+      - name: Build and check the release version
+        run: |
+          ./gradlew build -PreleaseVersion="$RELEASE_VERSION" --no-daemon
+          jar="build/libs/lettermint-$RELEASE_VERSION.jar"
+          unzip -p "$jar" META-INF/MANIFEST.MF | grep -q "Implementation-Version: $RELEASE_VERSION"
+          unzip -p "$jar" co/lettermint/BuildInfo.class | grep -q "$RELEASE_VERSION"
 
       - name: Publish to Maven Central
         env:
@@ -83,7 +89,7 @@ jobs:
           GPG_PRIVATE_KEY_BASE64: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           export ORG_GRADLE_PROJECT_signingKey=$(echo "$GPG_PRIVATE_KEY_BASE64" | base64 -d)
-          ./gradlew publish --no-daemon
+          ./gradlew publish -PreleaseVersion="$RELEASE_VERSION" --no-daemon
 
       - name: Release staging repository
         env:
