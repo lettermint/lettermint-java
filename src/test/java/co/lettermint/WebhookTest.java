@@ -67,6 +67,46 @@ class WebhookTest {
     }
 
     @Test
+    void testFutureTimestampWithinToleranceIsValid() {
+        String payload = "{\"event\":\"test\"}";
+        long futureTimestamp = (System.currentTimeMillis() / 1000) + 5;
+        String hash = computeHmac(futureTimestamp + "." + payload, TEST_SECRET);
+        String signature = "t=" + futureTimestamp + ",v1=" + hash;
+
+        Map<String, Object> result = Webhook.verify(payload, signature, TEST_SECRET, 300);
+
+        assertEquals("test", result.get("event"));
+    }
+
+    @Test
+    void testFutureTimestampOutsideToleranceIsRejected() {
+        String payload = "{\"event\":\"test\"}";
+        long futureTimestamp = (System.currentTimeMillis() / 1000) + 600;
+        String hash = computeHmac(futureTimestamp + "." + payload, TEST_SECRET);
+        String signature = "t=" + futureTimestamp + ",v1=" + hash;
+
+        TimestampToleranceException ex = assertThrows(TimestampToleranceException.class,
+                () -> Webhook.verify(payload, signature, TEST_SECRET, 300));
+
+        assertEquals(futureTimestamp, ex.getTimestamp());
+        assertEquals(300, ex.getTolerance());
+        assertTrue(ex.getMessage().contains("future"));
+    }
+
+    @Test
+    void testOldTimestampMessageMentionsAge() {
+        String payload = "{\"event\":\"test\"}";
+        long oldTimestamp = (System.currentTimeMillis() / 1000) - 600;
+        String hash = computeHmac(oldTimestamp + "." + payload, TEST_SECRET);
+        String signature = "t=" + oldTimestamp + ",v1=" + hash;
+
+        TimestampToleranceException ex = assertThrows(TimestampToleranceException.class,
+                () -> Webhook.verify(payload, signature, TEST_SECRET, 300));
+
+        assertTrue(ex.getMessage().contains("too old"));
+    }
+
+    @Test
     void testCustomTolerance() {
         String payload = "{\"event\":\"test\"}";
         long oldTimestamp = (System.currentTimeMillis() / 1000) - 500;

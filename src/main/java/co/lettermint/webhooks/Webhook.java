@@ -44,7 +44,8 @@ public class Webhook {
      * @param payload   The raw JSON payload string
      * @param signature The signature header value (format: "t={timestamp},v1={hash}")
      * @param secret    The webhook signing secret
-     * @param tolerance Maximum allowed age in seconds (0 to disable timestamp check)
+     * @param tolerance Maximum allowed difference in seconds between the signature timestamp and the
+     *                  current time, in either direction (0 to disable timestamp check)
      * @return The parsed payload as a Map
      * @throws WebhookVerificationException if verification fails
      */
@@ -110,21 +111,21 @@ public class Webhook {
 
         long now = System.currentTimeMillis() / 1000;
 
-        // Reject future timestamps and timestamps older than tolerance
-        if (timestamp > now) {
-            throw new TimestampToleranceException(
-                    String.format("Timestamp is in the future. Timestamp: %d, Current: %d",
-                            timestamp, now),
-                    timestamp,
-                    tolerance
-            );
-        }
-
+        // Accept timestamps within the tolerance window in both directions so that
+        // small clock skew between sender and receiver does not break verification.
         long age = now - timestamp;
         if (age > tolerance) {
             throw new TimestampToleranceException(
                     String.format("Timestamp too old. Timestamp: %d, Current: %d, Age: %d seconds, Tolerance: %d seconds",
                             timestamp, now, age, tolerance),
+                    timestamp,
+                    tolerance
+            );
+        }
+        if (-age > tolerance) {
+            throw new TimestampToleranceException(
+                    String.format("Timestamp too far in the future. Timestamp: %d, Current: %d, Ahead: %d seconds, Tolerance: %d seconds",
+                            timestamp, now, -age, tolerance),
                     timestamp,
                     tolerance
             );
