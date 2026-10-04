@@ -19,6 +19,15 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v3.0.0](https://github.com/lettermint/lettermint-java/compare/v2.7.0...v3.0.0) - 2026-10-04
+
+### What's Changed
+
+* feat(webhooks): support Basic Auth credentials and read flags by @bjarn in https://github.com/lettermint/lettermint-java/pull/58
+* feat!: Lettermint Java SDK 3.0 by @bjarn in https://github.com/lettermint/lettermint-java/pull/59
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v2.7.0...v3.0.0
+
 ## [v2.7.0](https://github.com/lettermint/lettermint-java/compare/v2.6.0...v2.7.0) - 2026-10-01
 
 ### What's Changed
