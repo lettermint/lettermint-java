@@ -17,7 +17,8 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-latest, windows-latest]
-        java: [8, 11, 17, 21]
+        # 17 is the minimum; 21 and 25 are the current LTS releases.
+        java: [17, 21, 25]
 
     steps:
       - name: Checkout code
@@ -34,11 +35,10 @@ jobs:
         run: chmod +x gradlew
         if: runner.os != 'Windows'
 
-      - name: Build with Gradle
+      # build runs the tests, javadoc and checkGeneratedTypes. The SDK generator is
+      # private, so CI only verifies the headers of src/main/java/co/lettermint/types.
+      - name: Build and test
         run: ./gradlew build --no-daemon
-
-      - name: Run tests
-        run: ./gradlew test --no-daemon
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
@@ -71,7 +71,6 @@ jobs:
 
       - name: Check build output
         run: |
-          if [ ! -d "build/libs" ]; then
-            echo "Build output directory 'build/libs' not found"
-            exit 1
-          fi
+          jar=$(ls build/libs/lettermint-*.jar | grep -v -e sources -e javadoc)
+          unzip -p "$jar" META-INF/MANIFEST.MF | grep -q 'Automatic-Module-Name: co.lettermint'
+          if unzip -l "$jar" | grep -q okhttp; then echo "okhttp must not be bundled"; exit 1; fi
