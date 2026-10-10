@@ -133,6 +133,15 @@ class TransportTest {
     }
 
     @Test
+    void readsRetryAfterFromA5xxResponse() {
+        server.enqueue(FakeServer.Response.json(503, "{\"message\":\"Service Unavailable\"}").header("Retry-After", "2"));
+        assertEquals(Duration.ofSeconds(2), assertThrows(ServerException.class, this::send).getRetryAfter());
+        server.enqueue(FakeServer.Response.json(500, "{\"message\":\"Server Error\"}"));
+        assertNull(assertThrows(ServerException.class, this::send).getRetryAfter());
+        assertNull(new ServerException(500, "Server Error", null, null, null).getRetryAfter());
+    }
+
+    @Test
     void neverFollowsRedirects() throws Exception {
         try (FakeServer foreign = new FakeServer()) {
             server.enqueue(FakeServer.Response.json(307, "{\"message\":\"Moved\"}").header("Location", foreign.baseUrl() + "/send"));

@@ -13,7 +13,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * Every item of a cursor-paginated list, returned by the {@code iterate()} methods.
+ * Every item of a cursor-paginated list, returned by the {@code iterate()} methods, or every response of
+ * an analytics query, returned by {@code analyticsPages()}.
  *
  * <pre>{@code
  * for (DomainListData domain : lettermint.domains().iterate()) { ... }

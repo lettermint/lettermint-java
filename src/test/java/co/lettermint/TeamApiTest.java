@@ -109,6 +109,7 @@ class TeamApiTest {
         List<Runnable> calls = List.of(
                 () -> client.ping(),
                 () -> client.analytics(AnalyticsQuery.builder().metrics(List.of(AnalyticsMetric.of("sent"))).build()),
+                () -> client.analyticsPages(AnalyticsQuery.builder().metrics(List.of(AnalyticsMetric.of("sent"))).build()).forEach(item -> { }),
                 () -> client.blockedFileTypes(),
                 () -> client.emails().send(email),
                 () -> client.emails().sendBatch(List.of(email)),
