@@ -4,9 +4,11 @@ import co.lettermint.exceptions.LettermintConfigException;
 import co.lettermint.types.AnalyticsQuery;
 import co.lettermint.types.AnalyticsResponse;
 import co.lettermint.types.BlockedFileTypes;
+import co.lettermint.types.CursorPage;
 import co.lettermint.types.Operations;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Collections;
 
 /**
  * The Lettermint client.
@@ -169,6 +171,43 @@ public final class Lettermint {
      */
     public AnalyticsResponse analytics(AnalyticsQuery query, RequestOptions options) {
         return transport.call(Operations.QUERY_ANALYTICS, Transport.call("analytics").body(query).options(options));
+    }
+
+    /**
+     * Queries email analytics and follows {@code pagination.next_cursor}, one whole response per
+     * request. Each response carries the next page of {@code data().breakdown()} with its own
+     * {@code meta()} and {@code pagination()}. Needs the team token.
+     *
+     * <p>A cursor expires 60 seconds after its response, so request the next page promptly; an expired
+     * cursor throws a {@link co.lettermint.exceptions.ValidationException}. The query passed in is not
+     * changed.
+     *
+     * @param query the metrics, dimensions and filters
+     * @return every response, requested one by one as you iterate
+     */
+    public CursorIterable<AnalyticsResponse> analyticsPages(AnalyticsQuery query) {
+        return analyticsPages(query, null);
+    }
+
+    /**
+     * @param query the metrics, dimensions and filters
+     * @param options per-call options, applied to every request, or null
+     * @return every response, requested one by one as you iterate
+     * @see #analyticsPages(AnalyticsQuery)
+     */
+    public CursorIterable<AnalyticsResponse> analyticsPages(AnalyticsQuery query, RequestOptions options) {
+        transport.assertAuth("analyticsPages", Operations.QUERY_ANALYTICS.auth());
+        String start = query == null ? null : query.cursor();
+        return new CursorIterable<>(cursor -> {
+            AnalyticsQuery body = query;
+            if (cursor != null) {
+                body = (query == null ? AnalyticsQuery.builder() : query.toBuilder()).cursor(cursor).build();
+            }
+            AnalyticsResponse page = transport.call(Operations.QUERY_ANALYTICS, Transport.call("analyticsPages").body(body).options(options));
+            String next = page == null || page.pagination() == null ? null : page.pagination().nextCursor();
+            // The cursor the query started from counts as used, like the ones CursorIterable has followed.
+            return new CursorPage<>(Collections.singletonList(page), null, null, next != null && next.equals(start) ? null : next, null, null, null);
+        });
     }
 
     /**

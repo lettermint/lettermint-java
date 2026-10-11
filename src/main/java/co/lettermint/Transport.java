@@ -416,7 +416,9 @@ final class Transport {
             case 429:
                 return new RateLimitException(status, message, code, details, decoded, parseRetryAfter(retryAfter));
             default:
-                return status >= 500 ? new ServerException(status, message, code, details, decoded) : new ApiException(status, message, code, details, decoded);
+                return status >= 500
+                        ? new ServerException(status, message, code, details, decoded, parseRetryAfter(retryAfter))
+                        : new ApiException(status, message, code, details, decoded);
         }
     }
 

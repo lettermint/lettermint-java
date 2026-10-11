@@ -16,14 +16,14 @@ Upgrading from 2.x? Read [UPGRADE.md](UPGRADE.md).
 <dependency>
     <groupId>co.lettermint</groupId>
     <artifactId>lettermint</artifactId>
-    <version>3.0.0</version>
+    <version>3.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'co.lettermint:lettermint:3.0.0'
+implementation 'co.lettermint:lettermint:3.1.0'
 ```
 
 ## Quick start
@@ -259,7 +259,7 @@ String html = lettermint.messages().html("message-id");
 | `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
 | `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)` |
-| (root) | `ping`, `analytics`, `blockedFileTypes` |
+| (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
 
 Request and response types are immutable records in `co.lettermint.types`. Build requests with their builder (`UpdateRouteData.builder().name("Main").build()`) or, for small ones, the constructor (`new StoreDomainData("acme.com")`). In update requests, a field that is optional and nullable is an `OptionalNullable`: leave it unset to keep the current value, or pass `null` to the builder to clear it:
 
@@ -291,6 +291,53 @@ for (MessageListData message : lettermint.messages().iterate(ListMessagesQuery.b
 lettermint.webhooks().deliveries().iterate(webhookId).stream().limit(100).forEach(System.out::println);
 ```
 
+### Analytics
+
+`lettermint.analytics(query)` runs one analytics query. `metrics` is the only required field; by default the API returns a summary of the last 30 days:
+
+```java
+AnalyticsResponse result = lettermint.analytics(AnalyticsQuery.builder()
+    .metrics(List.of(AnalyticsMetric.DELIVERED, AnalyticsMetric.BOUNCED, AnalyticsMetric.DELIVERY_RATE))
+    .from("2026-10-01")
+    .to("2026-10-31")
+    .timezone("Europe/Amsterdam")
+    .build());
+
+System.out.println(result.data().summary().metrics().deliveryRate()); // 0.9836, or null when there is no data
+System.out.println(result.meta().partial() + " " + result.meta().effectiveTo());
+```
+
+Add `include` to ask for a `time_series` or a `breakdown`. A breakdown needs `groupBy`, and the API returns its rows in pages of `limit` (at most 200). `analyticsPages()` follows `pagination().nextCursor()` for you. It returns a `CursorIterable` that yields one whole response per request, so each page keeps its `meta()` and `pagination()`:
+
+```java
+AnalyticsQuery query = AnalyticsQuery.builder()
+    .metrics(List.of(AnalyticsMetric.DELIVERED, AnalyticsMetric.BOUNCED))
+    .include(List.of(AnalyticsSection.BREAKDOWN))
+    .groupBy(List.of(AnalyticsGroupDimension.RECIPIENT_DOMAIN))
+    .sort(new AnalyticsSort(AnalyticsMetric.BOUNCED, AnalyticsSortDirection.DESC))
+    .limit(200)
+    .build();
+
+List<AnalyticsBreakdownRow> rows = new ArrayList<>();
+for (AnalyticsResponse page : lettermint.analyticsPages(query)) {
+    if (page.data().breakdown() != null) {
+        rows.addAll(page.data().breakdown());
+    }
+    if (page.pagination().truncated()) {
+        System.err.println("More groups exist than the API ranks.");
+    }
+}
+```
+
+A cursor expires 60 seconds after its response, so read the next page promptly. An expired cursor throws a `ValidationException` with `getErrors().get("cursor")`; run the query again to start over.
+
+A few things to know when you read a response:
+
+- A metric is `null` when the API cannot measure it for that row or bucket, and a rate is `null` when its denominator is zero. `0` means a measured zero. A metric the query did not ask for is `null` as well.
+- `data().summary()`, `data().timeSeries()` and `data().breakdown()` are present only when `include` asks for them, and `null` otherwise. `previous()`, `change()` and `meta().comparison()` are present only with `compare`.
+- `smtp_response_group` can be used in `groupBy` but not as a filter dimension.
+- Analytics can answer `503` or `504` when a query takes too long or the service is busy. Both throw a `ServerException`; see [Errors](#errors).
+
 ### Timeouts and cancellation
 
 Every method takes an optional last argument with per-call options: `RequestOptions.timeout(Duration)`, or `SendOptions` for calls that also take an idempotency key.
@@ -316,7 +363,7 @@ Every exception the SDK throws is unchecked and extends `LettermintException`:
 | `ConflictException` | 409 | |
 | `ValidationException` | 422 | `getErrors` (field errors) |
 | `RateLimitException` | 429 | `getRetryAfter` (`Duration`) |
-| `ServerException` | 5xx | |
+| `ServerException` | 5xx | `getRetryAfter` (`Duration`, when the API sent `Retry-After`) |
 | `TimeoutException` | No complete response within the timeout | `getTimeout` |
 | `ConnectionException` | The request failed (DNS, TLS, refused, reset) | `getCause` |
 | `UnexpectedResponseException` | An empty or non-JSON body where JSON was expected, or an error page such as a proxy's HTML 502 | `getStatus`, `getBodyExcerpt` |

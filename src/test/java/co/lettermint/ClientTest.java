@@ -83,6 +83,8 @@ class ClientTest {
         assertEquals("domains.list needs teamToken; set it with Lettermint.builder().teamToken(...).", error.getMessage());
         assertThrows(LettermintConfigException.class, () -> sending.webhooks().deliveries().iterate("wh_1"));
         assertThrows(LettermintConfigException.class, () -> sending.analytics(null));
+        error = assertThrows(LettermintConfigException.class, () -> sending.analyticsPages(null));
+        assertEquals("analyticsPages needs teamToken; set it with Lettermint.builder().teamToken(...).", error.getMessage());
 
         Lettermint team = builder().teamToken(TEAM).build();
         error = assertThrows(LettermintConfigException.class, () -> team.emails().send(EmailMessage.create()));
