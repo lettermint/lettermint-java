@@ -19,6 +19,14 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v3.1.0](https://github.com/lettermint/lettermint-java/compare/v3.0.0...v3.1.0) - 2026-10-11
+
+### What's Changed
+
+* feat: add analyticsPages, retryAfter on server errors and the latest API types by @bjarn in https://github.com/lettermint/lettermint-java/pull/60
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v3.0.0...v3.1.0
+
 ## [v3.0.0](https://github.com/lettermint/lettermint-java/compare/v2.7.0...v3.0.0) - 2026-10-04
 
 ### What's Changed
