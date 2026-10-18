@@ -3,6 +3,7 @@ package co.lettermint;
 import co.lettermint.types.MessageAttachmentInput;
 import co.lettermint.types.MessageTagInput;
 import co.lettermint.types.SandboxResult;
+import co.lettermint.types.SendBatchMailItem;
 import co.lettermint.types.SendMailRequest;
 import co.lettermint.types.SendMailRequestSettings;
 import java.time.Instant;
@@ -55,6 +56,7 @@ public final class EmailMessage {
         SendMailRequestSettings settings;
         SandboxResult sandboxResult;
         List<EmailAttachment> attachments;
+        String idempotencyKey;
 
         @Override
         protected Fields clone() {
@@ -311,6 +313,26 @@ public final class EmailMessage {
         });
     }
 
+    /**
+     * Sets a per-email idempotency key for {@code emails().sendBatch()}, sent as the item's
+     * {@code idempotency_key}. If an email with the same key and content was accepted in the last 24
+     * hours, the API returns its original result and does not send it again. Reusing a key with
+     * different content, or while that email is still being processed, rejects the whole batch with
+     * {@code 409 Conflict} and sends nothing. Keys must be unique within a batch.
+     *
+     * <p>Only batch sending uses it: {@code emails().send()} rejects a message that has one, and
+     * {@link #toRequest()} leaves it out. For a single email, or for the whole batch request, use
+     * {@link SendOptions#idempotencyKey(String)}, which is sent as the {@code Idempotency-Key} header.
+     *
+     * @param idempotencyKey 1 to 255 characters; null removes it
+     * @return a copy with this key
+     * @throws co.lettermint.exceptions.LettermintValidationException when the key is empty or longer
+     *     than 255 characters
+     */
+    public EmailMessage idempotencyKey(String idempotencyKey) {
+        return with(f -> f.idempotencyKey = idempotencyKey);
+    }
+
     /** @return the sender, or null */
     public String from() {
         return fields.from;
@@ -396,6 +418,11 @@ public final class EmailMessage {
         return fields.attachments == null ? List.of() : fields.attachments;
     }
 
+    /** @return the per-email idempotency key for batch sending, or null */
+    public String idempotencyKey() {
+        return fields.idempotencyKey;
+    }
+
     /**
      * @return the message in the API's wire format, with attachments base64-encoded
      */
@@ -443,6 +470,14 @@ public final class EmailMessage {
         return request.build();
     }
 
+    /** The message as a {@code POST /send/batch} item, with its per-email idempotency key. */
+    SendBatchMailItem toBatchItem() {
+        SendMailRequest r = toRequest();
+        return new SendBatchMailItem(r.route(), r.from(), r.to(), r.cc(), r.bcc(), r.replyTo(), r.subject(), r.scheduledAt(),
+                r.sandboxResult(), r.headers(), r.metadata(), r.tag(), r.tags(), r.settings(), r.html(), r.text(), r.attachments(),
+                fields.idempotencyKey);
+    }
+
     /** The message without attachment content. Contains no credentials. */
     @Override
     public String toString() {
@@ -464,6 +499,7 @@ public final class EmailMessage {
         add(joiner, "settings", fields.settings);
         add(joiner, "sandboxResult", fields.sandboxResult);
         add(joiner, "attachments", fields.attachments);
+        add(joiner, "idempotencyKey", fields.idempotencyKey);
         return joiner.toString();
     }
 

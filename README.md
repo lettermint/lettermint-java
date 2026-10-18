@@ -148,6 +148,7 @@ email.html(invoiceHtml).send();
 | `settings(SendMailRequestSettings)` | Per-email settings that override the route. |
 | `sandboxResult(SandboxResult)` | The result a Sandbox project simulates. |
 | `attach(EmailAttachment)` | Adds an attachment. |
+| `idempotencyKey(key)` | Per-email idempotency key for [batch sending](#batch-sending). `send()` rejects it. |
 | `send()`, `send(SendOptions)` | Sends the email. The builder can be sent again. |
 | `build()` | Returns the `EmailMessage`. |
 
@@ -162,6 +163,16 @@ List<SendMailResponse> results = lettermint.emails().sendBatch(List.of(
     EmailMessage.create().from("hello@acme.com").to("jane@example.com").subject("Hi Jane").text("Hello"),
     welcome.to("john@example.com").html("<p>Hi John</p>").build()));
 ```
+
+Give an email in a batch its own idempotency key to make it safe to send again, in this or a later batch. If an email with the same key and content was accepted in the last 24 hours, the API returns its original result and does not send it again. Keys are 1 to 255 characters and must be unique within the batch; reusing a key with different content rejects the whole batch with a `ConflictException` and sends nothing:
+
+```java
+lettermint.emails().sendBatch(orders.stream()
+    .map(order -> receipt.to(order.email()).idempotencyKey("receipt-" + order.id()).build())
+    .toList());
+```
+
+The per-email key is only for batches: `send()` rejects a message that has one (use `SendOptions.idempotencyKey(...)` instead). If a batch fails part-way, emails before the failing one may already be accepted; the exception's `getDetails()` then has an `accepted` list with the `index` and `message_id` of each.
 
 ### Idempotency
 

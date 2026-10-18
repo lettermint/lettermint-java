@@ -236,6 +236,42 @@ class EmailsTest {
     }
 
     @Test
+    void sendsPerEmailIdempotencyKeysInBatches() throws Exception {
+        EmailBuilder welcome = client.emails().compose().from("hello@acme.com").subject("Welcome").idempotencyKey("welcome-john");
+        EmailMessage one = EmailMessage.create().from("a@b.c").to("d@e.f").subject("One").text("1").idempotencyKey("order-1");
+        client.emails().sendBatch(List.of(one, welcome.to("john@example.com").build()), SendOptions.idempotencyKey("batch-1"));
+        assertEquals("batch-1", server.last().header("idempotency-key"));
+        assertEquals("{\"from\":\"a@b.c\",\"to\":[\"d@e.f\"],\"subject\":\"One\",\"text\":\"1\",\"idempotency_key\":\"order-1\"}",
+                lastBody().get(0).toString());
+        assertEquals("welcome-john", lastBody().get(1).get("idempotency_key").asText());
+        assertEquals("order-1", one.idempotencyKey());
+
+        client.emails().sendBatch(List.of(one.idempotencyKey(null), one.idempotencyKey("order-2")));
+        assertNull(server.last().header("idempotency-key"));
+        assertNull(lastBody().get(0).get("idempotency_key"));
+        assertEquals("order-2", lastBody().get(1).get("idempotency_key").asText());
+        int before = server.requests().size();
+
+        LettermintValidationException duplicate = assertThrows(LettermintValidationException.class,
+                () -> client.emails().sendBatch(List.of(one, one.subject("Two"))));
+        assertEquals("messages[1].idempotencyKey", duplicate.getField());
+
+        assertEquals("idempotencyKey", assertThrows(LettermintValidationException.class, () -> one.idempotencyKey("")).getField());
+        assertThrows(LettermintValidationException.class, () -> one.idempotencyKey("k".repeat(256)));
+        assertEquals("k".repeat(255), one.idempotencyKey("k".repeat(255)).idempotencyKey());
+        assertThrows(LettermintValidationException.class, () -> welcome.idempotencyKey(""));
+
+        LettermintValidationException single = assertThrows(LettermintValidationException.class, () -> client.emails().send(one));
+        assertEquals("idempotencyKey", single.getField());
+        assertThrows(LettermintValidationException.class, () -> welcome.to("john@example.com").send());
+        assertEquals(before, server.requests().size());
+
+        client.emails().send(one.idempotencyKey(null), SendOptions.idempotencyKey("single-1"));
+        assertEquals("single-1", server.last().header("idempotency-key"));
+        assertNull(lastBody().get("idempotency_key"));
+    }
+
+    @Test
     void reschedulesFromAString() throws Exception {
         client.emails().send(EmailMessage.create().from("a@b.c").scheduledAt("tomorrow 9am"));
         assertEquals("tomorrow 9am", lastBody().get("scheduled_at").asText());
