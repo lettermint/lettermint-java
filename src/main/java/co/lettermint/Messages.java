@@ -7,11 +7,13 @@ import co.lettermint.types.MessageData;
 import co.lettermint.types.MessageEventData;
 import co.lettermint.types.MessageListData;
 import co.lettermint.types.Operations;
+import co.lettermint.types.PendingSendMailResponse;
 import co.lettermint.types.ProcessInboundMessageResponse;
 import co.lettermint.types.RescheduleMessageRequest;
+import co.lettermint.types.ResendMessageRequest;
 import co.lettermint.types.ScheduledMessage;
 
-/** Sent and received messages. Needs the team token; {@code reschedule} and {@code cancel} also accept the sending token when no team token is configured. Thread-safe. */
+/** Sent and received messages. Needs the team token; {@code reschedule}, {@code cancel} and {@code resend} also accept the sending token when no team token is configured. Thread-safe. */
 public final class Messages {
     private final Transport transport;
 
@@ -292,6 +294,42 @@ public final class Messages {
      */
     public ProcessInboundMessageResponse process(String messageId, SendOptions options) {
         return transport.call(Operations.PROCESS_INBOUND_MESSAGE, Transport.call("messages.process").path(messageId).options(options));
+    }
+
+    /**
+     * Resends a sent message to every original recipient, as a new message with its own ID. Uses the team token if configured,
+     * otherwise the sending token. Accepts an idempotency key.
+     *
+     * @param messageId the message id
+     * @return the response
+     */
+    public PendingSendMailResponse resend(String messageId) {
+        return resend(messageId, null, null);
+    }
+
+    /**
+     * Resends a sent message as a new message with its own ID. Uses the team token if configured, otherwise the sending token.
+     * Accepts an idempotency key.
+     *
+     * @param messageId the message id
+     * @param body the recipients to resend to, or null to resend to every original recipient
+     * @return the response
+     */
+    public PendingSendMailResponse resend(String messageId, ResendMessageRequest body) {
+        return resend(messageId, body, null);
+    }
+
+    /**
+     * Resends a sent message as a new message with its own ID. Uses the team token if configured, otherwise the sending token.
+     * Accepts an idempotency key.
+     *
+     * @param messageId the message id
+     * @param body the recipients to resend to, or null to resend to every original recipient
+     * @param options the idempotency key and timeout of this call, or null
+     * @return the response
+     */
+    public PendingSendMailResponse resend(String messageId, ResendMessageRequest body, SendOptions options) {
+        return transport.call(Operations.RESEND_MESSAGE, Transport.call("messages.resend").path(messageId).body(body).options(options));
     }
 
     @Override

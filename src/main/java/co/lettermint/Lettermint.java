@@ -23,8 +23,8 @@ import java.util.Collections;
  * }</pre>
  *
  * <p>{@link #emails()} uses the sending token; every other part uses the team token. {@link #ping()},
- * {@code messages().reschedule()} and {@code messages().cancel()} accept either. The client holds no
- * message state, is immutable and thread-safe: create it once and share it.
+ * {@code messages().reschedule()}, {@code messages().cancel()} and {@code messages().resend()} accept
+ * either. The client holds no message state, is immutable and thread-safe: create it once and share it.
  */
 public final class Lettermint {
     private final Transport transport;

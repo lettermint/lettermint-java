@@ -95,7 +95,7 @@ class ClientTest {
     }
 
     @Test
-    void pingRescheduleAndCancelPreferTheTeamToken() {
+    void pingRescheduleCancelAndResendPreferTheTeamToken() {
         Lettermint both = builder().sendingToken(SENDING).teamToken(TEAM).build();
         both.ping();
         assertEquals("Bearer " + TEAM, server.last().header("authorization"));
@@ -104,6 +104,9 @@ class ClientTest {
         assertNull(server.last().header("authorization"));
         both.messages().cancel("msg_1");
         assertEquals("Bearer " + TEAM, server.last().header("authorization"));
+        both.messages().resend("msg_1");
+        assertEquals("Bearer " + TEAM, server.last().header("authorization"));
+        assertNull(server.last().header("x-lettermint-token"));
 
         Lettermint sending = builder().sendingToken(SENDING).build();
         sending.ping();
@@ -112,6 +115,10 @@ class ClientTest {
         assertEquals("PATCH", server.last().method());
         assertEquals(SENDING, server.last().header("x-lettermint-token"));
         sending.messages().cancel("msg_1");
+        assertEquals(SENDING, server.last().header("x-lettermint-token"));
+        assertNull(server.last().header("authorization"));
+        sending.messages().resend("msg_1");
+        assertEquals("/v1/messages/msg_1/resend", server.last().path());
         assertEquals(SENDING, server.last().header("x-lettermint-token"));
         assertNull(server.last().header("authorization"));
     }

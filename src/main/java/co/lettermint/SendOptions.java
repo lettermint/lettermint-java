@@ -4,7 +4,8 @@ import java.time.Duration;
 
 /**
  * Options of calls that accept an {@code Idempotency-Key}: {@code emails().send()},
- * {@code emails().sendBatch()}, {@code EmailBuilder.send()} and {@code messages().process()}.
+ * {@code emails().sendBatch()}, {@code EmailBuilder.send()}, {@code messages().process()} and
+ * {@code messages().resend()}.
  *
  * <pre>{@code
  * lettermint.emails().send(message, SendOptions.idempotencyKey("order-1234-confirmation"));
