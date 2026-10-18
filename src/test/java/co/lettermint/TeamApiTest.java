@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import co.lettermint.exceptions.ApiException;
+import co.lettermint.exceptions.LettermintConfigException;
 import co.lettermint.exceptions.NotFoundException;
 import co.lettermint.exceptions.UnexpectedResponseException;
 import co.lettermint.types.AnalyticsMetric;
@@ -14,10 +16,13 @@ import co.lettermint.types.DomainListData;
 import co.lettermint.types.GetStatsQuery;
 import co.lettermint.types.ListDomainsQuery;
 import co.lettermint.types.ListWebhookDeliveriesQuery;
+import co.lettermint.types.MessageData;
 import co.lettermint.types.Operations;
+import co.lettermint.types.PendingSendMailResponse;
 import co.lettermint.types.ProjectAccessScope;
 import co.lettermint.types.ReportForwardingRequest;
 import co.lettermint.types.RescheduleMessageRequest;
+import co.lettermint.types.ResendMessageRequest;
 import co.lettermint.types.RouteType;
 import co.lettermint.types.StoreDomainData;
 import co.lettermint.types.StoreProjectData;
@@ -132,6 +137,7 @@ class TeamApiTest {
                 () -> client.messages().reschedule("m1", new RescheduleMessageRequest("2026-10-20T09:00:00Z")),
                 () -> client.messages().cancel("m1"),
                 () -> client.messages().process("m1"),
+                () -> client.messages().resend("m1"),
                 () -> client.projects().list(),
                 () -> client.projects().iterate().forEach(item -> { }),
                 () -> client.projects().create(StoreProjectData.builder().name("Production").build()),
@@ -195,6 +201,60 @@ class TeamApiTest {
         assertEquals("Bearer " + ClientTest.TEAM, server.last().header("authorization"));
         assertNull(server.last().header("x-lettermint-token"));
         assertEquals("{\"domain\":\"acme.com\"}", server.last().body());
+    }
+
+    @Test
+    void resendsAMessage() {
+        server.fallback(request -> FakeServer.Response.json(202, "{\"message_id\":\"m2\",\"status\":\"pending\"}"));
+        PendingSendMailResponse resent = client.messages().resend("m 1");
+        assertEquals("POST", server.last().method());
+        assertEquals("/v1/messages/m%201/resend", server.last().path());
+        assertEquals("Bearer " + ClientTest.TEAM, server.last().header("authorization"));
+        assertNull(server.last().header("x-lettermint-token"));
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertNull(server.last().header("idempotency-key"));
+        assertEquals("m2", resent.messageId());
+        assertEquals("pending", resent.status());
+
+        client.messages().resend("m1", ResendMessageRequest.builder().build());
+        assertEquals("{}", server.last().body());
+
+        client.messages().resend("m1", new ResendMessageRequest(List.of("a@b.c", "d@e.f")), SendOptions.idempotencyKey("resend-1"));
+        assertEquals("/v1/messages/m1/resend", server.last().path());
+        assertTrue(server.last().header("content-type").startsWith("application/json"));
+        assertEquals("{\"recipients\":[\"a@b.c\",\"d@e.f\"]}", server.last().body());
+        assertEquals("resend-1", server.last().header("idempotency-key"));
+
+        client.messages().resend("m1", null, SendOptions.idempotencyKey("resend-2"));
+        assertEquals("", server.last().body());
+        assertEquals("resend-2", server.last().header("idempotency-key"));
+
+        int before = server.requests().size();
+        assertThrows(LettermintConfigException.class, () -> client.messages().resend(""));
+        assertEquals(before, server.requests().size());
+
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        sending.messages().resend("m1");
+        assertEquals(ClientTest.SENDING, server.last().header("x-lettermint-token"));
+        assertNull(server.last().header("authorization"));
+    }
+
+    @Test
+    void resendMapsGoneToAnApiException() {
+        server.enqueue(FakeServer.Response.json(410, "{\"error\":{\"code\":\"MESSAGE_CONTENT_EXPIRED\",\"message\":\"The message content is no longer retained.\"}}"));
+        ApiException error = assertThrows(ApiException.class, () -> client.messages().resend("m1"));
+        assertEquals(ApiException.class, error.getClass());
+        assertEquals(410, error.getStatus());
+        assertEquals("MESSAGE_CONTENT_EXPIRED", error.getCode());
+        assertEquals("The message content is no longer retained.", error.getMessage());
+    }
+
+    @Test
+    void messagesExposeTheResentFromMessageId() {
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"m2\",\"resent_from_message_id\":\"m1\"}"));
+        MessageData message = client.messages().retrieve("m2");
+        assertEquals("m1", message.resentFromMessageId());
     }
 
     @Test

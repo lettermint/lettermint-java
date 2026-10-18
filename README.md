@@ -69,7 +69,7 @@ Lettermint lettermint = Lettermint.builder()
     .build();
 ```
 
-Each part uses its own token and never falls back to the other one. If the token a method needs is missing, it throws a `LettermintConfigException` that names it (`domains.list needs teamToken; …`), before any request. `lettermint.ping()` uses the team token when it is set, otherwise the sending token. `messages().reschedule()` and `messages().cancel()` accept either token in the same way.
+Each part uses its own token and never falls back to the other one. If the token a method needs is missing, it throws a `LettermintConfigException` that names it (`domains.list needs teamToken; …`), before any request. `lettermint.ping()` uses the team token when it is set, otherwise the sending token. `messages().reschedule()`, `messages().cancel()` and `messages().resend()` accept either token in the same way.
 
 You can also pass a single token and let the SDK choose its type by the format: `lm_team_` followed by letters and digits is a team token, and `lm_` followed by letters and digits is a sending token.
 
@@ -194,6 +194,18 @@ lettermint.messages().reschedule(result.messageId(), new RescheduleMessageReques
 lettermint.messages().cancel(result.messageId());
 ```
 
+### Resending
+
+`messages().resend()` sends the stored content of a sent message again, as a new message with its own ID. The new message's `resentFromMessageId()` links to the original. Leave out the recipients to resend to every original recipient:
+
+```java
+PendingSendMailResponse resent = lettermint.messages().resend(messageId);
+lettermint.messages().resend(messageId, new ResendMessageRequest(List.of("jane@example.com")),
+    SendOptions.idempotencyKey("resend-" + messageId + "-jane"));
+```
+
+A message can be resent while its content is retained (afterwards the API answers with HTTP 410) and at most 5 times in 24 hours.
+
 ### Sandbox
 
 In a Sandbox project, nothing is delivered. Choose the simulated result per email:
@@ -249,7 +261,7 @@ String html = lettermint.messages().html("message-id");
 | Accessor | Methods |
 | --- | --- |
 | `domains()` | `list`, `iterate`, `create`, `retrieve`, `delete`, `verifyDnsRecords`, `verifyDnsRecord`, `updateProjects` |
-| `messages()` | `list`, `iterate`, `retrieve`, `events`, `iterateEvents`, `source`, `html`, `text`, `reschedule`, `cancel`, `process` |
+| `messages()` | `list`, `iterate`, `retrieve`, `events`, `iterateEvents`, `source`, `html`, `text`, `reschedule`, `cancel`, `process`, `resend` |
 | `projects()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `rotateToken` |
 | `projects().reportForwarding()` | `retrieve`, `update`, `delete`, `verify`, `resendCode` |
 | `routes()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `retrieve`, `update`, `delete`, `verifyInboundDomain` |
