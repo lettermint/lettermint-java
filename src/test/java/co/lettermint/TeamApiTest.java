@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import co.lettermint.exceptions.ApiException;
+import co.lettermint.exceptions.AuthenticationException;
+import co.lettermint.exceptions.ConflictException;
 import co.lettermint.exceptions.LettermintConfigException;
 import co.lettermint.exceptions.NotFoundException;
+import co.lettermint.exceptions.RateLimitException;
 import co.lettermint.exceptions.UnexpectedResponseException;
 import co.lettermint.types.AnalyticsMetric;
 import co.lettermint.types.AnalyticsQuery;
@@ -23,6 +26,7 @@ import co.lettermint.types.ProjectAccessScope;
 import co.lettermint.types.ReportForwardingRequest;
 import co.lettermint.types.RescheduleMessageRequest;
 import co.lettermint.types.ResendMessageRequest;
+import co.lettermint.types.RetryWebhookDeliveryResponse;
 import co.lettermint.types.RouteType;
 import co.lettermint.types.StoreDomainData;
 import co.lettermint.types.StoreProjectData;
@@ -39,8 +43,11 @@ import co.lettermint.types.UpdateTeamMemberAssignmentData;
 import co.lettermint.types.UpdateTeamMemberAssignmentDataProjectAccess;
 import co.lettermint.types.UpdateWebhookData;
 import co.lettermint.types.VerifyReportForwardingRequest;
+import co.lettermint.types.WebhookDeliveryData;
+import co.lettermint.types.WebhookDeliveryListData;
 import co.lettermint.types.WebhookEvent;
 import co.lettermint.types.WebhookListData;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -183,7 +190,8 @@ class TeamApiTest {
                 () -> client.webhooks().regenerateSecret("w1"),
                 () -> client.webhooks().deliveries().list("w1"),
                 () -> client.webhooks().deliveries().iterate("w1").forEach(item -> { }),
-                () -> client.webhooks().deliveries().retrieve("w1", "dl1"));
+                () -> client.webhooks().deliveries().retrieve("w1", "dl1"),
+                () -> client.webhooks().deliveries().retry("w1", "dl1"));
         calls.forEach(Runnable::run);
 
         Set<String> reached = new TreeSet<>();
@@ -255,6 +263,77 @@ class TeamApiTest {
         server.enqueue(FakeServer.Response.json(200, "{\"id\":\"m2\",\"resent_from_message_id\":\"m1\"}"));
         MessageData message = client.messages().retrieve("m2");
         assertEquals("m1", message.resentFromMessageId());
+    }
+
+    @Test
+    void retriesAWebhookDelivery() {
+        server.fallback(request -> FakeServer.Response.json(202, "{\"message\":\"Delivery retry queued.\",\"delivery_id\":\"dl 1\"}"));
+        RetryWebhookDeliveryResponse retried = client.webhooks().deliveries().retry("w 1", "dl 1");
+        assertEquals("POST", server.last().method());
+        assertEquals("/v1/webhooks/w%201/deliveries/dl%201/retry", server.last().path());
+        assertEquals("Bearer " + ClientTest.TEAM, server.last().header("authorization"));
+        assertNull(server.last().header("x-lettermint-token"));
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertNull(server.last().header("idempotency-key"));
+        assertEquals("Delivery retry queued.", retried.message());
+        assertEquals("dl 1", retried.deliveryId());
+
+        client.webhooks().deliveries().retry("w1", "dl1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertEquals("/v1/webhooks/w1/deliveries/dl1/retry", server.last().path());
+
+        int before = server.requests().size();
+        assertThrows(LettermintConfigException.class, () -> client.webhooks().deliveries().retry("", "dl1"));
+        assertThrows(LettermintConfigException.class, () -> client.webhooks().deliveries().retry("w1", ".."));
+        assertThrows(LettermintConfigException.class, () -> client.webhooks().deliveries().retry("w1", null));
+        assertEquals(before, server.requests().size());
+
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        assertThrows(LettermintConfigException.class, () -> sending.webhooks().deliveries().retry("w1", "dl1"));
+        assertEquals(before, server.requests().size());
+    }
+
+    @Test
+    void retryingADeliveryMapsErrorsToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(409, "{\"error\":{\"code\":\"WEBHOOK_DELIVERY_NOT_RETRYABLE\",\"message\":\"This delivery cannot be retried.\"}}"));
+        ConflictException conflict = assertThrows(ConflictException.class, () -> client.webhooks().deliveries().retry("w1", "dl1"));
+        assertEquals(409, conflict.getStatus());
+        assertEquals("WEBHOOK_DELIVERY_NOT_RETRYABLE", conflict.getCode());
+        assertEquals("This delivery cannot be retried.", conflict.getMessage());
+
+        server.enqueue(FakeServer.Response.json(429, "{\"message\":\"Too Many Attempts.\"}").header("Retry-After", "30"));
+        RateLimitException limited = assertThrows(RateLimitException.class, () -> client.webhooks().deliveries().retry("w1", "dl1"));
+        assertEquals("Too Many Attempts.", limited.getMessage());
+        assertNull(limited.getCode());
+        assertEquals(Duration.ofSeconds(30), limited.getRetryAfter());
+
+        server.enqueue(FakeServer.Response.json(429, "{\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Slow down.\"}}"));
+        RateLimitException coded = assertThrows(RateLimitException.class, () -> client.webhooks().deliveries().retry("w1", "dl1"));
+        assertEquals("RATE_LIMITED", coded.getCode());
+        assertEquals("Slow down.", coded.getMessage());
+
+        server.enqueue(FakeServer.Response.json(401, "{\"message\":\"Unauthenticated.\"}"));
+        AuthenticationException unauthenticated = assertThrows(AuthenticationException.class, () -> client.webhooks().deliveries().retry("w1", "dl1"));
+        assertEquals("Unauthenticated.", unauthenticated.getMessage());
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.webhooks().deliveries().retry("w1", "dl1"));
+    }
+
+    @Test
+    void webhookDeliveriesExposeTheNextRetryAt() {
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"dl1\",\"next_retry_at\":\"2026-10-18T12:00:00.000000Z\"}"));
+        WebhookDeliveryData scheduled = client.webhooks().deliveries().retrieve("w1", "dl1");
+        assertEquals("2026-10-18T12:00:00.000000Z", scheduled.nextRetryAt());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"dl1\",\"next_retry_at\":null}"));
+        assertNull(client.webhooks().deliveries().retrieve("w1", "dl1").nextRetryAt());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":[{\"id\":\"dl1\",\"next_retry_at\":\"2026-10-18T12:00:00.000000Z\"},{\"id\":\"dl2\",\"next_retry_at\":null},{\"id\":\"dl3\"}],\"next_cursor\":null}"));
+        List<WebhookDeliveryListData> deliveries = client.webhooks().deliveries().list("w1").data();
+        assertEquals("2026-10-18T12:00:00.000000Z", deliveries.get(0).nextRetryAt());
+        assertNull(deliveries.get(1).nextRetryAt());
+        assertNull(deliveries.get(2).nextRetryAt());
     }
 
     @Test
