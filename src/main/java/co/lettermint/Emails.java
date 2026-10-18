@@ -3,10 +3,12 @@ package co.lettermint;
 import co.lettermint.exceptions.LettermintValidationException;
 import co.lettermint.types.Operations;
 import co.lettermint.types.Operations.AuthSurface;
-import co.lettermint.types.SendMailRequest;
+import co.lettermint.types.SendBatchMailItem;
 import co.lettermint.types.SendMailResponse;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Sends email with the project sending token ({@code x-lettermint-token}). Holds no message state:
@@ -42,11 +44,17 @@ public final class Emails {
             throw new LettermintValidationException("send() takes an EmailMessage.", "message");
         }
         EmailValidation.validate(message, "");
+        if (message.idempotencyKey() != null) {
+            throw new LettermintValidationException("A per-email idempotencyKey applies only to sendBatch(); pass SendOptions.idempotencyKey(...) to send().",
+                    "idempotencyKey");
+        }
         return transport.call(Operations.SEND_MAIL, Transport.call("emails.send").body(message.toRequest()).options(options));
     }
 
     /**
-     * Sends up to 500 emails in one request. Use {@link EmailBuilder#build()} for builders.
+     * Sends up to 500 emails in one request. Use {@link EmailBuilder#build()} for builders. Give each
+     * email an {@link EmailMessage#idempotencyKey(String)} to make it safe to send again, in this or a
+     * later batch.
      *
      * @param messages the emails
      * @return one result per email, in order
@@ -58,6 +66,12 @@ public final class Emails {
     /**
      * Sends up to 500 emails in one request.
      *
+     * <p>{@code options} can carry an idempotency key for the whole request ({@code Idempotency-Key}
+     * header); per-email keys are set with {@link EmailMessage#idempotencyKey(String)} and must be unique
+     * within the batch. If the batch fails part-way, emails before the failing one may already be
+     * accepted: {@link co.lettermint.exceptions.ApiException#getDetails()} then has an {@code accepted}
+     * list with the {@code index} and {@code message_id} of each.
+     *
      * @param messages the emails
      * @param options the idempotency key and timeout of this call, or null
      * @return one result per email, in order
@@ -67,14 +81,18 @@ public final class Emails {
         if (messages == null) {
             throw new LettermintValidationException("sendBatch() takes a list of messages.", "messages");
         }
-        List<SendMailRequest> body = new ArrayList<>(messages.size());
+        List<SendBatchMailItem> body = new ArrayList<>(messages.size());
+        Set<String> keys = new HashSet<>();
         for (int index = 0; index < messages.size(); index++) {
             EmailMessage message = messages.get(index);
             if (message == null) {
                 throw new LettermintValidationException("An email message must not be null.", "messages[" + index + "]");
             }
             EmailValidation.validate(message, "messages[" + index + "]");
-            body.add(message.toRequest());
+            if (message.idempotencyKey() != null && !keys.add(message.idempotencyKey())) {
+                throw new LettermintValidationException("Idempotency keys must be unique within a batch.", "messages[" + index + "].idempotencyKey");
+            }
+            body.add(message.toBatchItem());
         }
         return transport.call(Operations.SEND_BATCH_MAIL, Transport.call("emails.sendBatch").body(body).options(options));
     }

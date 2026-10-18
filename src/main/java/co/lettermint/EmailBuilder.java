@@ -217,6 +217,18 @@ public final class EmailBuilder {
     }
 
     /**
+     * Sets a per-email idempotency key for {@code emails().sendBatch()}; see
+     * {@link EmailMessage#idempotencyKey(String)}. {@link #send()} rejects a builder that has one: for
+     * a single email, pass {@link SendOptions#idempotencyKey(String)} to {@link #send(SendOptions)}.
+     *
+     * @param idempotencyKey 1 to 255 characters; null removes it
+     * @return a new builder
+     */
+    public EmailBuilder idempotencyKey(String idempotencyKey) {
+        return new EmailBuilder(emails, message.idempotencyKey(idempotencyKey));
+    }
+
+    /**
      * @return the email as an {@link EmailMessage}, for example for {@code emails().sendBatch()}
      */
     public EmailMessage build() {

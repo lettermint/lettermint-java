@@ -16,6 +16,7 @@ final class EmailValidation {
     private static final Pattern TAG_NAME = Pattern.compile("^[A-Za-z0-9_-]{1,32}$");
     private static final Pattern TAG_VALUE = Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
     private static final int MAX_TAGS = 20;
+    private static final int MAX_IDEMPOTENCY_KEY = 255;
 
     private EmailValidation() {
     }
@@ -24,6 +25,11 @@ final class EmailValidation {
         String field = prefix.isEmpty() ? "tags" : prefix + ".tags";
         String legacyTag = message.tag();
         validateTags(message.tags(), legacyTag != null && !legacyTag.isEmpty(), field);
+        String key = message.idempotencyKey();
+        if (key != null && (key.isEmpty() || key.codePointCount(0, key.length()) > MAX_IDEMPOTENCY_KEY)) {
+            throw new LettermintValidationException("idempotencyKey must be 1 to " + MAX_IDEMPOTENCY_KEY + " characters.",
+                    prefix.isEmpty() ? "idempotencyKey" : prefix + ".idempotencyKey");
+        }
     }
 
     static void validateTags(List<MessageTagInput> tags, boolean hasLegacyTag, String field) {
