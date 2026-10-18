@@ -36,7 +36,7 @@ import java.util.Map;
  * @param spamSymbols Detailed rules that contributed to the spam assessment. Available on plans with Spam Insights in individual-message responses. Optional: null when absent.
  * @param routeId Always present.
  * @param createdAt Always present.
- * @param resentFromMessageId The ID of the message this message resent. Null when it is not a resend. Always present; may be null.
+ * @param resentFromMessageId The ID of the message this message resent. Null when it is not a resend. Optional and nullable: null when absent or null.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
