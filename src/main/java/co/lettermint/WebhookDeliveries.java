@@ -3,6 +3,7 @@ package co.lettermint;
 import co.lettermint.types.CursorPage;
 import co.lettermint.types.ListWebhookDeliveriesQuery;
 import co.lettermint.types.Operations;
+import co.lettermint.types.RetryWebhookDeliveryResponse;
 import co.lettermint.types.WebhookDeliveryData;
 import co.lettermint.types.WebhookDeliveryListData;
 
@@ -101,6 +102,35 @@ public final class WebhookDeliveries {
      */
     public WebhookDeliveryData retrieve(String webhookId, String deliveryId, RequestOptions options) {
         return transport.call(Operations.GET_WEBHOOK_DELIVERY, Transport.call("webhooks.deliveries.retrieve").path(webhookId, deliveryId).options(options));
+    }
+
+    /**
+     * Sends a delivery's original payload to the webhook again now. The retry counts as a delivery attempt;
+     * if it fails with a retryable error, automatic retries continue. Throws a
+     * {@link co.lettermint.exceptions.ConflictException} when the webhook is disabled, the delivery cannot be retried,
+     * or a retry is already in progress.
+     *
+     * @param webhookId the webhook id
+     * @param deliveryId the delivery id
+     * @return the response
+     */
+    public RetryWebhookDeliveryResponse retry(String webhookId, String deliveryId) {
+        return retry(webhookId, deliveryId, null);
+    }
+
+    /**
+     * Sends a delivery's original payload to the webhook again now. The retry counts as a delivery attempt;
+     * if it fails with a retryable error, automatic retries continue. Throws a
+     * {@link co.lettermint.exceptions.ConflictException} when the webhook is disabled, the delivery cannot be retried,
+     * or a retry is already in progress.
+     *
+     * @param webhookId the webhook id
+     * @param deliveryId the delivery id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public RetryWebhookDeliveryResponse retry(String webhookId, String deliveryId, RequestOptions options) {
+        return transport.call(Operations.RETRY_WEBHOOK_DELIVERY, Transport.call("webhooks.deliveries.retry").path(webhookId, deliveryId).options(options));
     }
 
     @Override

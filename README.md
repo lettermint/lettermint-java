@@ -281,8 +281,10 @@ String html = lettermint.messages().html("message-id");
 | `team()` | `retrieve`, `update`, `usage`, `roles` |
 | `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
-| `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)` |
+| `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)`, `retry(webhookId, deliveryId)` |
 | (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
+
+`webhooks().deliveries().retry(webhookId, deliveryId)` sends a delivery's original payload to the webhook again now; it throws a `ConflictException` when the webhook is disabled, the delivery cannot be retried, or a retry is already in progress.
 
 Request and response types are immutable records in `co.lettermint.types`. Build requests with their builder (`UpdateRouteData.builder().name("Main").build()`) or, for small ones, the constructor (`new StoreDomainData("acme.com")`). In update requests, a field that is optional and nullable is an `OptionalNullable`: leave it unset to keep the current value, or pass `null` to the builder to clear it:
 
