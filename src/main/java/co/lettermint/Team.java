@@ -1,12 +1,18 @@
 package co.lettermint;
 
+import co.lettermint.types.CreateTeamRoleData;
+import co.lettermint.types.DeleteTeamRoleQuery;
+import co.lettermint.types.DuplicateTeamRoleData;
 import co.lettermint.types.GetTeamQuery;
+import co.lettermint.types.MessageResponse;
 import co.lettermint.types.Operations;
 import co.lettermint.types.TeamData;
 import co.lettermint.types.TeamMutationResponse;
+import co.lettermint.types.TeamRoleData;
 import co.lettermint.types.TeamRoleListResponse;
 import co.lettermint.types.TeamUsageDetailData;
 import co.lettermint.types.UpdateTeamData;
+import co.lettermint.types.UpdateTeamRoleData;
 
 /** The team of the token. Needs the team token. Thread-safe. */
 public final class Team {
@@ -121,6 +127,134 @@ public final class Team {
      */
     public TeamRoleListResponse roles(RequestOptions options) {
         return transport.call(Operations.LIST_TEAM_ROLES, Transport.call("team.roles").options(options));
+    }
+
+    /**
+     * Retrieves a team role.
+     *
+     * @param roleId the role id
+     * @return the response
+     */
+    public TeamRoleData retrieveRole(String roleId) {
+        return retrieveRole(roleId, null);
+    }
+
+    /**
+     * Retrieves a team role.
+     *
+     * @param roleId the role id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public TeamRoleData retrieveRole(String roleId, RequestOptions options) {
+        return transport.call(Operations.GET_TEAM_ROLE, Transport.call("team.retrieveRole").path(roleId).options(options));
+    }
+
+    /**
+     * Creates a custom role. Needs a plan with custom roles; the permissions must include the
+     * permissions they depend on, and role names are unique within the team.
+     *
+     * @param body the request body
+     * @return the response
+     */
+    public TeamRoleData createRole(CreateTeamRoleData body) {
+        return createRole(body, null);
+    }
+
+    /**
+     * Creates a custom role. Needs a plan with custom roles; the permissions must include the
+     * permissions they depend on, and role names are unique within the team.
+     *
+     * @param body the request body
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public TeamRoleData createRole(CreateTeamRoleData body, RequestOptions options) {
+        return transport.call(Operations.CREATE_TEAM_ROLE, Transport.call("team.createRole").body(body).options(options));
+    }
+
+    /**
+     * Replaces a custom role's name, description and permissions. Built-in roles can't be changed.
+     *
+     * @param roleId the role id
+     * @param body the request body
+     * @return the response
+     */
+    public TeamRoleData updateRole(String roleId, UpdateTeamRoleData body) {
+        return updateRole(roleId, body, null);
+    }
+
+    /**
+     * Replaces a custom role's name, description and permissions. Built-in roles can't be changed.
+     *
+     * @param roleId the role id
+     * @param body the request body
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public TeamRoleData updateRole(String roleId, UpdateTeamRoleData body, RequestOptions options) {
+        return transport.call(Operations.UPDATE_TEAM_ROLE, Transport.call("team.updateRole").path(roleId).body(body).options(options));
+    }
+
+    /**
+     * Deletes a custom role. Built-in roles can't be deleted. While the role is still assigned to
+     * members, invites or SCIM groups, pass {@code replacementRoleId} to move those assignments.
+     *
+     * @param roleId the role id
+     * @return the response
+     */
+    public MessageResponse deleteRole(String roleId) {
+        return deleteRole(roleId, null, null);
+    }
+
+    /**
+     * Deletes a custom role. Built-in roles can't be deleted. While the role is still assigned to
+     * members, invites or SCIM groups, pass {@code replacementRoleId} to move those assignments.
+     *
+     * @param roleId the role id
+     * @param query the query parameters, or null
+     * @return the response
+     */
+    public MessageResponse deleteRole(String roleId, DeleteTeamRoleQuery query) {
+        return deleteRole(roleId, query, null);
+    }
+
+    /**
+     * Deletes a custom role. Built-in roles can't be deleted. While the role is still assigned to
+     * members, invites or SCIM groups, pass {@code replacementRoleId} to move those assignments.
+     *
+     * @param roleId the role id
+     * @param query the query parameters, or null
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public MessageResponse deleteRole(String roleId, DeleteTeamRoleQuery query, RequestOptions options) {
+        return transport.call(Operations.DELETE_TEAM_ROLE, Transport.call("team.deleteRole").path(roleId).query(query).options(options));
+    }
+
+    /**
+     * Copies a role under a new name. Without a description, the copy keeps the source role's
+     * description. The Owner role can't be duplicated.
+     *
+     * @param roleId the role id
+     * @param body the request body
+     * @return the response
+     */
+    public TeamRoleData duplicateRole(String roleId, DuplicateTeamRoleData body) {
+        return duplicateRole(roleId, body, null);
+    }
+
+    /**
+     * Copies a role under a new name. Without a description, the copy keeps the source role's
+     * description. The Owner role can't be duplicated.
+     *
+     * @param roleId the role id
+     * @param body the request body
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public TeamRoleData duplicateRole(String roleId, DuplicateTeamRoleData body, RequestOptions options) {
+        return transport.call(Operations.DUPLICATE_TEAM_ROLE, Transport.call("team.duplicateRole").path(roleId).body(body).options(options));
     }
 
     @Override
