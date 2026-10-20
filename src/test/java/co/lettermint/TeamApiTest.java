@@ -12,14 +12,19 @@ import co.lettermint.exceptions.LettermintConfigException;
 import co.lettermint.exceptions.NotFoundException;
 import co.lettermint.exceptions.RateLimitException;
 import co.lettermint.exceptions.UnexpectedResponseException;
+import co.lettermint.exceptions.ValidationException;
 import co.lettermint.types.AnalyticsMetric;
 import co.lettermint.types.AnalyticsQuery;
+import co.lettermint.types.CreateTeamInviteData;
+import co.lettermint.types.CreateTeamInviteDataProjectAccess;
 import co.lettermint.types.CursorPage;
 import co.lettermint.types.DomainListData;
 import co.lettermint.types.GetStatsQuery;
 import co.lettermint.types.ListDomainsQuery;
+import co.lettermint.types.ListTeamInvitesQuery;
 import co.lettermint.types.ListWebhookDeliveriesQuery;
 import co.lettermint.types.MessageData;
+import co.lettermint.types.MessageResponse;
 import co.lettermint.types.Operations;
 import co.lettermint.types.PendingSendMailResponse;
 import co.lettermint.types.ProjectAccessScope;
@@ -35,10 +40,13 @@ import co.lettermint.types.StoreSuppressionData;
 import co.lettermint.types.StoreWebhookData;
 import co.lettermint.types.SuppressionCreateReason;
 import co.lettermint.types.SuppressionCreateScope;
+import co.lettermint.types.TeamInviteData;
 import co.lettermint.types.UpdateDomainProjectsData;
 import co.lettermint.types.UpdateProjectData;
 import co.lettermint.types.UpdateRouteData;
 import co.lettermint.types.UpdateTeamData;
+import co.lettermint.types.UpdateTeamInviteData;
+import co.lettermint.types.UpdateTeamInviteDataProjectAccess;
 import co.lettermint.types.UpdateTeamMemberAssignmentData;
 import co.lettermint.types.UpdateTeamMemberAssignmentDataProjectAccess;
 import co.lettermint.types.UpdateWebhookData;
@@ -58,6 +66,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TeamApiTest {
+    /**
+     * Operations that have no method yet: they are added by the next PRs in this stack. Each of those
+     * PRs removes its operations from this list, and the last one removes the list.
+     */
+    private static final Set<String> PENDING = Set.of(
+            "GET /team/roles/{roleId}",
+            "POST /team/roles",
+            "PUT /team/roles/{roleId}",
+            "DELETE /team/roles/{roleId}",
+            "POST /team/roles/{roleId}/duplicate",
+            "DELETE /team/members/{userId}");
+
     private FakeServer server;
     private Lettermint client;
 
@@ -179,6 +199,14 @@ class TeamApiTest {
                 () -> client.team().members().retrieve("u1"),
                 () -> client.team().members().updateAssignment("u1", new UpdateTeamMemberAssignmentData("role1",
                         new UpdateTeamMemberAssignmentDataProjectAccess(ProjectAccessScope.of("all"), null))),
+                () -> client.team().invites().list(),
+                () -> client.team().invites().iterate().forEach(item -> { }),
+                () -> client.team().invites().retrieve("i1"),
+                () -> client.team().invites().create(new CreateTeamInviteData("a@b.c", "role1",
+                        new CreateTeamInviteDataProjectAccess(ProjectAccessScope.of("all"), null))),
+                () -> client.team().invites().update("i1", new UpdateTeamInviteData("a@b.c", "role1",
+                        new UpdateTeamInviteDataProjectAccess(ProjectAccessScope.of("all"), null))),
+                () -> client.team().invites().revoke("i1"),
                 () -> client.webhooks().list(),
                 () -> client.webhooks().iterate().forEach(item -> { }),
                 () -> client.webhooks().create(StoreWebhookData.builder().name("Hook").url("https://acme.com/hook")
@@ -198,7 +226,10 @@ class TeamApiTest {
         for (FakeServer.Request request : server.requests()) {
             reached.add(operationKey(request));
         }
-        assertEquals(new TreeSet<>(Operations.ALL.keySet()), reached);
+        assertTrue(Operations.ALL.keySet().containsAll(PENDING), "every pending operation is generated");
+        Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
+        expected.removeAll(PENDING);
+        assertEquals(expected, reached);
     }
 
     @Test
@@ -334,6 +365,106 @@ class TeamApiTest {
         assertEquals("2026-10-18T12:00:00.000000Z", deliveries.get(0).nextRetryAt());
         assertNull(deliveries.get(1).nextRetryAt());
         assertNull(deliveries.get(2).nextRetryAt());
+    }
+
+    private static final String INVITE = "{\"id\":\"i 1\",\"email\":\"ada@acme.com\",\"role\":{\"id\":\"role1\",\"name\":\"Developer\"},"
+            + "\"project_access\":{\"scope\":\"selected\",\"projects\":[{\"id\":\"p1\",\"name\":\"Production\"}]},\"created_at\":\"2026-10-20T09:00:00.000000Z\"}";
+
+    private void assertTeamRequest(String method, String path) {
+        assertEquals(method, server.last().method());
+        assertEquals(path, server.last().path());
+        assertEquals("Bearer " + ClientTest.TEAM, server.last().header("authorization"));
+        assertNull(server.last().header("x-lettermint-token"));
+        assertNull(server.last().header("idempotency-key"));
+    }
+
+    @Test
+    void createsAndUpdatesTeamInvites() {
+        server.enqueue(FakeServer.Response.json(201, INVITE));
+        TeamInviteData created = client.team().invites().create(new CreateTeamInviteData("ada@acme.com", "role1",
+                new CreateTeamInviteDataProjectAccess(ProjectAccessScope.of("selected"), List.of("p1"))));
+        assertTeamRequest("POST", "/v1/team/invites");
+        assertEquals("{\"email\":\"ada@acme.com\",\"role_id\":\"role1\",\"project_access\":{\"scope\":\"selected\",\"project_ids\":[\"p1\"]}}",
+                server.last().body());
+        assertEquals("i 1", created.id());
+        assertEquals("ada@acme.com", created.email());
+        assertEquals("role1", created.role().id());
+        assertEquals("Developer", created.role().name());
+        assertEquals(ProjectAccessScope.of("selected"), created.projectAccess().scope());
+        assertEquals("Production", created.projectAccess().projects().get(0).name());
+        assertEquals("2026-10-20T09:00:00.000000Z", created.createdAt());
+
+        server.enqueue(FakeServer.Response.json(201, INVITE));
+        client.team().invites().create(CreateTeamInviteData.builder().email("ada@acme.com").roleId("role1")
+                .projectAccess(CreateTeamInviteDataProjectAccess.builder().scope(ProjectAccessScope.of("all")).build()).build(),
+                RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertEquals("{\"email\":\"ada@acme.com\",\"role_id\":\"role1\",\"project_access\":{\"scope\":\"all\"}}", server.last().body());
+
+        server.enqueue(FakeServer.Response.json(200, INVITE));
+        TeamInviteData updated = client.team().invites().update("i 1", new UpdateTeamInviteData("ada@acme.com", "role2",
+                new UpdateTeamInviteDataProjectAccess(ProjectAccessScope.of("all"), null)));
+        assertTeamRequest("PUT", "/v1/team/invites/i%201");
+        assertEquals("{\"email\":\"ada@acme.com\",\"role_id\":\"role2\",\"project_access\":{\"scope\":\"all\"}}", server.last().body());
+        assertEquals("i 1", updated.id());
+    }
+
+    @Test
+    void listsRetrievesAndRevokesTeamInvites() {
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":[" + INVITE + "],\"path\":null,\"per_page\":2,\"next_cursor\":\"c2\","
+                + "\"next_page_url\":null,\"prev_cursor\":null,\"prev_page_url\":null}"));
+        CursorPage<TeamInviteData> page = client.team().invites().list(ListTeamInvitesQuery.builder().pageSize(2).pageCursor("c1").build());
+        assertTeamRequest("GET", "/v1/team/invites");
+        assertEquals("page%5Bsize%5D=2&page%5Bcursor%5D=c1", server.last().rawQuery());
+        assertEquals("ada@acme.com", page.data().get(0).email());
+        assertEquals("c2", page.nextCursor());
+
+        server.enqueue(FakeServer.Response.json(200, page("c2", "i1", "i2")));
+        server.enqueue(FakeServer.Response.json(200, page(null, "i3")));
+        List<String> ids = client.team().invites().iterate(ListTeamInvitesQuery.builder().pageSize(2).build()).stream().map(TeamInviteData::id).toList();
+        assertEquals(List.of("i1", "i2", "i3"), ids);
+        assertEquals("page%5Bsize%5D=2&page%5Bcursor%5D=c2", server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, INVITE));
+        TeamInviteData invite = client.team().invites().retrieve("i 1");
+        assertTeamRequest("GET", "/v1/team/invites/i%201");
+        assertEquals("Developer", invite.role().name());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Invite revoked.\"}"));
+        MessageResponse revoked = client.team().invites().revoke("i 1");
+        assertTeamRequest("DELETE", "/v1/team/invites/i%201");
+        assertEquals("", server.last().body());
+        assertEquals("Invite revoked.", revoked.message());
+    }
+
+    @Test
+    void teamInvitesValidateIdsAndNeedTheTeamToken() {
+        UpdateTeamInviteData body = new UpdateTeamInviteData("ada@acme.com", "role1",
+                new UpdateTeamInviteDataProjectAccess(ProjectAccessScope.of("all"), null));
+        assertThrows(LettermintConfigException.class, () -> client.team().invites().retrieve(""));
+        assertThrows(LettermintConfigException.class, () -> client.team().invites().update("..", body));
+        assertThrows(LettermintConfigException.class, () -> client.team().invites().revoke(null));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        assertThrows(LettermintConfigException.class, () -> sending.team().invites().list());
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void teamInviteErrorsMapToApiExceptions() {
+        CreateTeamInviteData body = new CreateTeamInviteData("ada@acme.com", "owner",
+                new CreateTeamInviteDataProjectAccess(ProjectAccessScope.of("all"), null));
+        server.enqueue(FakeServer.Response.json(409, "{\"error\":{\"code\":\"owner_protected\",\"message\":\"The Owner role cannot be assigned.\"}}"));
+        ConflictException conflict = assertThrows(ConflictException.class, () -> client.team().invites().create(body));
+        assertEquals(409, conflict.getStatus());
+        assertEquals("owner_protected", conflict.getCode());
+        assertEquals("The Owner role cannot be assigned.", conflict.getMessage());
+
+        server.enqueue(FakeServer.Response.json(422, "{\"message\":\"The email has already been invited.\",\"errors\":{\"email\":[\"The email has already been invited.\"]}}"));
+        ValidationException invalid = assertThrows(ValidationException.class, () -> client.team().invites().create(body));
+        assertEquals(422, invalid.getStatus());
+        assertEquals(List.of("The email has already been invited."), invalid.getErrors().get("email"));
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.team().invites().revoke("i1"));
     }
 
     @Test

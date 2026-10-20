@@ -280,11 +280,20 @@ String html = lettermint.messages().html("message-id");
 | `suppressions()` | `list`, `iterate`, `create`, `delete` |
 | `team()` | `retrieve`, `update`, `usage`, `roles` |
 | `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment` |
+| `team().invites()` | `list`, `iterate`, `retrieve`, `create`, `update`, `revoke` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
 | `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)`, `retry(webhookId, deliveryId)` |
 | (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
 
 `webhooks().deliveries().retry(webhookId, deliveryId)` sends a delivery's original payload to the webhook again now; it throws a `ConflictException` when the webhook is disabled, the delivery cannot be retried, or a retry is already in progress.
+
+`team().invites().create(...)` invites a person and sends the invitation email; the team needs a free seat, and the Owner role can't be assigned. `update(inviteId, ...)` replaces a pending invitation's email, role and project access, and sends a new email only when the address changes:
+
+```java
+TeamInviteData invite = lettermint.team().invites().create(new CreateTeamInviteData("ada@acme.com", roleId,
+    new CreateTeamInviteDataProjectAccess(ProjectAccessScope.of("selected"), List.of(projectId))));
+lettermint.team().invites().revoke(invite.id());
+```
 
 Request and response types are immutable records in `co.lettermint.types`. Build requests with their builder (`UpdateRouteData.builder().name("Main").build()`) or, for small ones, the constructor (`new StoreDomainData("acme.com")`). In update requests, a field that is optional and nullable is an `OptionalNullable`: leave it unset to keep the current value, or pass `null` to the builder to clear it:
 
