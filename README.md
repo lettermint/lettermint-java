@@ -279,7 +279,7 @@ String html = lettermint.messages().html("message-id");
 | `stats()` | `retrieve` |
 | `suppressions()` | `list`, `iterate`, `create`, `delete` |
 | `team()` | `retrieve`, `update`, `usage`, `roles`, `retrieveRole`, `createRole`, `updateRole`, `deleteRole`, `duplicateRole` |
-| `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment` |
+| `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment`, `remove` |
 | `team().invites()` | `list`, `iterate`, `retrieve`, `create`, `update`, `revoke` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
 | `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)`, `retry(webhookId, deliveryId)` |
@@ -305,6 +305,14 @@ TeamRoleData role = lettermint.team().createRole(CreateTeamRoleData.builder()
     .build());
 lettermint.team().duplicateRole(role.id(), DuplicateTeamRoleData.builder().name("Support (EU)").build());
 lettermint.team().deleteRole(role.id(), new DeleteTeamRoleQuery(replacementRoleId));
+```
+
+`team().members().remove(userId)` removes a member from the team; the Owner can't be removed. `ListTeamMembersQuery.filterProjectId(...)` limits the member list to members who can access that project: members with access to all projects and members selected for it.
+
+```java
+for (TeamMemberData member : lettermint.team().members().iterate(ListTeamMembersQuery.builder().filterProjectId(projectId).build())) {
+    System.out.println(member.email());
+}
 ```
 
 Request and response types are immutable records in `co.lettermint.types`. Build requests with their builder (`UpdateRouteData.builder().name("Main").build()`) or, for small ones, the constructor (`new StoreDomainData("acme.com")`). In update requests, a field that is optional and nullable is an `OptionalNullable`: leave it unset to keep the current value, or pass `null` to the builder to clear it:
