@@ -12,10 +12,12 @@ import co.lettermint.types.UpdateTeamData;
 public final class Team {
     private final Transport transport;
     private final TeamMembers members;
+    private final TeamInvites invites;
 
     Team(Transport transport) {
         this.transport = transport;
         this.members = new TeamMembers(transport);
+        this.invites = new TeamInvites(transport);
     }
 
     /**
@@ -23,6 +25,13 @@ public final class Team {
      */
     public TeamMembers members() {
         return members;
+    }
+
+    /**
+     * @return pending team invitations
+     */
+    public TeamInvites invites() {
+        return invites;
     }
 
     /**
