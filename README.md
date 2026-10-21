@@ -278,7 +278,7 @@ String html = lettermint.messages().html("message-id");
 | `routes()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `retrieve`, `update`, `delete`, `verifyInboundDomain` |
 | `stats()` | `retrieve` |
 | `suppressions()` | `list`, `iterate`, `create`, `delete` |
-| `team()` | `retrieve`, `update`, `usage`, `roles` |
+| `team()` | `retrieve`, `update`, `usage`, `roles`, `retrieveRole`, `createRole`, `updateRole`, `deleteRole`, `duplicateRole` |
 | `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment` |
 | `team().invites()` | `list`, `iterate`, `retrieve`, `create`, `update`, `revoke` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
@@ -293,6 +293,18 @@ String html = lettermint.messages().html("message-id");
 TeamInviteData invite = lettermint.team().invites().create(new CreateTeamInviteData("ada@acme.com", roleId,
     new CreateTeamInviteDataProjectAccess(ProjectAccessScope.of("selected"), List.of(projectId))));
 lettermint.team().invites().revoke(invite.id());
+```
+
+`team().createRole(...)` creates a custom role; it needs a plan with custom roles, and the permissions must include the permissions they depend on. Built-in roles can't be updated or deleted. While a role is still assigned to members, invites or SCIM groups, `deleteRole` needs a replacement role that receives those assignments:
+
+```java
+TeamRoleData role = lettermint.team().createRole(CreateTeamRoleData.builder()
+    .name("Support")
+    .description("Answers customer tickets")
+    .permissions(List.of(RbacPermission.MEMBERS_READ, RbacPermission.SUPPORT_MANAGE))
+    .build());
+lettermint.team().duplicateRole(role.id(), DuplicateTeamRoleData.builder().name("Support (EU)").build());
+lettermint.team().deleteRole(role.id(), new DeleteTeamRoleQuery(replacementRoleId));
 ```
 
 Request and response types are immutable records in `co.lettermint.types`. Build requests with their builder (`UpdateRouteData.builder().name("Main").build()`) or, for small ones, the constructor (`new StoreDomainData("acme.com")`). In update requests, a field that is optional and nullable is an `OptionalNullable`: leave it unset to keep the current value, or pass `null` to the builder to clear it:

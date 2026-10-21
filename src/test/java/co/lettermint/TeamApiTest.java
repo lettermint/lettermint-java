@@ -17,8 +17,11 @@ import co.lettermint.types.AnalyticsMetric;
 import co.lettermint.types.AnalyticsQuery;
 import co.lettermint.types.CreateTeamInviteData;
 import co.lettermint.types.CreateTeamInviteDataProjectAccess;
+import co.lettermint.types.CreateTeamRoleData;
+import co.lettermint.types.DeleteTeamRoleQuery;
 import co.lettermint.types.CursorPage;
 import co.lettermint.types.DomainListData;
+import co.lettermint.types.DuplicateTeamRoleData;
 import co.lettermint.types.GetStatsQuery;
 import co.lettermint.types.ListDomainsQuery;
 import co.lettermint.types.ListTeamInvitesQuery;
@@ -28,6 +31,7 @@ import co.lettermint.types.MessageResponse;
 import co.lettermint.types.Operations;
 import co.lettermint.types.PendingSendMailResponse;
 import co.lettermint.types.ProjectAccessScope;
+import co.lettermint.types.RbacPermission;
 import co.lettermint.types.ReportForwardingRequest;
 import co.lettermint.types.RescheduleMessageRequest;
 import co.lettermint.types.ResendMessageRequest;
@@ -41,6 +45,7 @@ import co.lettermint.types.StoreWebhookData;
 import co.lettermint.types.SuppressionCreateReason;
 import co.lettermint.types.SuppressionCreateScope;
 import co.lettermint.types.TeamInviteData;
+import co.lettermint.types.TeamRoleData;
 import co.lettermint.types.UpdateDomainProjectsData;
 import co.lettermint.types.UpdateProjectData;
 import co.lettermint.types.UpdateRouteData;
@@ -49,6 +54,7 @@ import co.lettermint.types.UpdateTeamInviteData;
 import co.lettermint.types.UpdateTeamInviteDataProjectAccess;
 import co.lettermint.types.UpdateTeamMemberAssignmentData;
 import co.lettermint.types.UpdateTeamMemberAssignmentDataProjectAccess;
+import co.lettermint.types.UpdateTeamRoleData;
 import co.lettermint.types.UpdateWebhookData;
 import co.lettermint.types.VerifyReportForwardingRequest;
 import co.lettermint.types.WebhookDeliveryData;
@@ -71,11 +77,6 @@ class TeamApiTest {
      * PRs removes its operations from this list, and the last one removes the list.
      */
     private static final Set<String> PENDING = Set.of(
-            "GET /team/roles/{roleId}",
-            "POST /team/roles",
-            "PUT /team/roles/{roleId}",
-            "DELETE /team/roles/{roleId}",
-            "POST /team/roles/{roleId}/duplicate",
             "DELETE /team/members/{userId}");
 
     private FakeServer server;
@@ -194,6 +195,11 @@ class TeamApiTest {
                 () -> client.team().update(UpdateTeamData.builder().name("Acme").build()),
                 () -> client.team().usage(),
                 () -> client.team().roles(),
+                () -> client.team().retrieveRole("role1"),
+                () -> client.team().createRole(CreateTeamRoleData.builder().name("Support").permissions(List.of(RbacPermission.MEMBERS_READ)).build()),
+                () -> client.team().updateRole("role1", UpdateTeamRoleData.builder().name("Support").permissions(List.of()).build()),
+                () -> client.team().deleteRole("role1"),
+                () -> client.team().duplicateRole("role1", DuplicateTeamRoleData.builder().name("Support 2").build()),
                 () -> client.team().members().list(),
                 () -> client.team().members().iterate().forEach(item -> { }),
                 () -> client.team().members().retrieve("u1"),
@@ -465,6 +471,101 @@ class TeamApiTest {
 
         server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
         assertThrows(NotFoundException.class, () -> client.team().invites().revoke("i1"));
+    }
+
+    private static final String ROLE = "{\"id\":\"role 1\",\"name\":\"Support\",\"description\":\"Answers tickets\",\"system_key\":null,"
+            + "\"permissions\":[\"members:read\",\"support:manage\"],\"assignable\":true}";
+
+    @Test
+    void retrievesCreatesAndUpdatesTeamRoles() {
+        server.enqueue(FakeServer.Response.json(200, ROLE));
+        TeamRoleData role = client.team().retrieveRole("role 1");
+        assertTeamRequest("GET", "/v1/team/roles/role%201");
+        assertEquals("role 1", role.id());
+        assertEquals("Support", role.name());
+        assertEquals("Answers tickets", role.description());
+        assertNull(role.systemKey());
+        assertEquals(List.of(RbacPermission.MEMBERS_READ, RbacPermission.SUPPORT_MANAGE), role.permissions());
+        assertTrue(role.assignable());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"role1\",\"name\":\"Admin\",\"description\":null,\"system_key\":\"admin\",\"permissions\":[],\"assignable\":true}"));
+        assertNull(client.team().retrieveRole("role1").description());
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"role1\",\"name\":\"Admin\"}"));
+        assertNull(client.team().retrieveRole("role1").description());
+
+        server.enqueue(FakeServer.Response.json(201, ROLE));
+        TeamRoleData created = client.team().createRole(CreateTeamRoleData.builder().name("Support").description("Answers tickets")
+                .permissions(List.of(RbacPermission.MEMBERS_READ, RbacPermission.SUPPORT_MANAGE)).build());
+        assertTeamRequest("POST", "/v1/team/roles");
+        assertEquals("{\"name\":\"Support\",\"description\":\"Answers tickets\",\"permissions\":[\"members:read\",\"support:manage\"]}", server.last().body());
+        assertEquals("Answers tickets", created.description());
+
+        server.enqueue(FakeServer.Response.json(201, ROLE));
+        client.team().createRole(CreateTeamRoleData.builder().name("Support").permissions(List.of(RbacPermission.MEMBERS_READ)).build(),
+                RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertEquals("{\"name\":\"Support\",\"permissions\":[\"members:read\"]}", server.last().body());
+
+        server.enqueue(FakeServer.Response.json(200, ROLE));
+        TeamRoleData updated = client.team().updateRole("role 1", UpdateTeamRoleData.builder().name("Support").description(null)
+                .permissions(List.of(RbacPermission.MEMBERS_READ)).build());
+        assertTeamRequest("PUT", "/v1/team/roles/role%201");
+        assertEquals("{\"name\":\"Support\",\"description\":null,\"permissions\":[\"members:read\"]}", server.last().body());
+        assertEquals("Support", updated.name());
+    }
+
+    @Test
+    void deletesAndDuplicatesTeamRoles() {
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Role deleted.\"}"));
+        MessageResponse deleted = client.team().deleteRole("role 1");
+        assertTeamRequest("DELETE", "/v1/team/roles/role%201");
+        assertNull(server.last().rawQuery());
+        assertEquals("", server.last().body());
+        assertEquals("Role deleted.", deleted.message());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Role deleted.\"}"));
+        client.team().deleteRole("role1", DeleteTeamRoleQuery.builder().build());
+        assertNull(server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Role deleted.\"}"));
+        client.team().deleteRole("role1", new DeleteTeamRoleQuery("role2"), RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("DELETE", "/v1/team/roles/role1");
+        assertEquals("replacement_role_id=role2", server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(201, ROLE));
+        TeamRoleData copy = client.team().duplicateRole("role 1", DuplicateTeamRoleData.builder().name("Support 2").build());
+        assertTeamRequest("POST", "/v1/team/roles/role%201/duplicate");
+        assertEquals("{\"name\":\"Support 2\"}", server.last().body());
+        assertEquals("Answers tickets", copy.description());
+
+        server.enqueue(FakeServer.Response.json(201, ROLE));
+        client.team().duplicateRole("role1", DuplicateTeamRoleData.builder().name("Support 2").description("Copy").build());
+        assertEquals("{\"name\":\"Support 2\",\"description\":\"Copy\"}", server.last().body());
+    }
+
+    @Test
+    void teamRolesValidateIdsAndNeedTheTeamToken() {
+        UpdateTeamRoleData body = UpdateTeamRoleData.builder().name("Support").permissions(List.of()).build();
+        assertThrows(LettermintConfigException.class, () -> client.team().retrieveRole(""));
+        assertThrows(LettermintConfigException.class, () -> client.team().updateRole("..", body));
+        assertThrows(LettermintConfigException.class, () -> client.team().deleteRole(null));
+        assertThrows(LettermintConfigException.class, () -> client.team().duplicateRole("", DuplicateTeamRoleData.builder().name("Copy").build()));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        assertThrows(LettermintConfigException.class, () -> sending.team().retrieveRole("role1"));
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void teamRoleErrorsMapToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(409, "{\"error\":{\"code\":\"built_in_role_immutable\",\"message\":\"Built-in roles cannot be changed.\"}}"));
+        ConflictException conflict = assertThrows(ConflictException.class,
+                () -> client.team().updateRole("admin", UpdateTeamRoleData.builder().name("Admin").permissions(List.of()).build()));
+        assertEquals(409, conflict.getStatus());
+        assertEquals("built_in_role_immutable", conflict.getCode());
+        assertEquals("Built-in roles cannot be changed.", conflict.getMessage());
+
+        server.enqueue(FakeServer.Response.json(422, "{\"message\":\"Choose a replacement role.\",\"errors\":{\"replacement_role_id\":[\"Choose a replacement role.\"]}}"));
+        ValidationException invalid = assertThrows(ValidationException.class, () -> client.team().deleteRole("role1"));
+        assertEquals(List.of("Choose a replacement role."), invalid.getErrors().get("replacement_role_id"));
     }
 
     @Test
