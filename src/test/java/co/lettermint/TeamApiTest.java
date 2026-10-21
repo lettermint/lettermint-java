@@ -25,6 +25,7 @@ import co.lettermint.types.DuplicateTeamRoleData;
 import co.lettermint.types.GetStatsQuery;
 import co.lettermint.types.ListDomainsQuery;
 import co.lettermint.types.ListTeamInvitesQuery;
+import co.lettermint.types.ListTeamMembersQuery;
 import co.lettermint.types.ListWebhookDeliveriesQuery;
 import co.lettermint.types.MessageData;
 import co.lettermint.types.MessageResponse;
@@ -72,13 +73,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TeamApiTest {
-    /**
-     * Operations that have no method yet: they are added by the next PRs in this stack. Each of those
-     * PRs removes its operations from this list, and the last one removes the list.
-     */
-    private static final Set<String> PENDING = Set.of(
-            "DELETE /team/members/{userId}");
-
     private FakeServer server;
     private Lettermint client;
 
@@ -203,6 +197,7 @@ class TeamApiTest {
                 () -> client.team().members().list(),
                 () -> client.team().members().iterate().forEach(item -> { }),
                 () -> client.team().members().retrieve("u1"),
+                () -> client.team().members().remove("u1"),
                 () -> client.team().members().updateAssignment("u1", new UpdateTeamMemberAssignmentData("role1",
                         new UpdateTeamMemberAssignmentDataProjectAccess(ProjectAccessScope.of("all"), null))),
                 () -> client.team().invites().list(),
@@ -232,10 +227,7 @@ class TeamApiTest {
         for (FakeServer.Request request : server.requests()) {
             reached.add(operationKey(request));
         }
-        assertTrue(Operations.ALL.keySet().containsAll(PENDING), "every pending operation is generated");
-        Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
-        expected.removeAll(PENDING);
-        assertEquals(expected, reached);
+        assertEquals(new TreeSet<>(Operations.ALL.keySet()), reached);
     }
 
     @Test
@@ -566,6 +558,52 @@ class TeamApiTest {
         server.enqueue(FakeServer.Response.json(422, "{\"message\":\"Choose a replacement role.\",\"errors\":{\"replacement_role_id\":[\"Choose a replacement role.\"]}}"));
         ValidationException invalid = assertThrows(ValidationException.class, () -> client.team().deleteRole("role1"));
         assertEquals(List.of("Choose a replacement role."), invalid.getErrors().get("replacement_role_id"));
+    }
+
+    @Test
+    void removesATeamMember() {
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Member removed.\"}"));
+        MessageResponse removed = client.team().members().remove("u 1");
+        assertTeamRequest("DELETE", "/v1/team/members/u%201");
+        assertEquals("", server.last().body());
+        assertEquals("Member removed.", removed.message());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Member removed.\"}"));
+        client.team().members().remove("u1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("DELETE", "/v1/team/members/u1");
+
+        server.enqueue(FakeServer.Response.json(409, "{\"error\":{\"code\":\"owner_protected\",\"message\":\"The Owner cannot be removed.\"}}"));
+        ConflictException conflict = assertThrows(ConflictException.class, () -> client.team().members().remove("owner"));
+        assertEquals(409, conflict.getStatus());
+        assertEquals("owner_protected", conflict.getCode());
+        assertEquals("The Owner cannot be removed.", conflict.getMessage());
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.team().members().remove("u2"));
+
+        int before = server.requests().size();
+        assertThrows(LettermintConfigException.class, () -> client.team().members().remove(""));
+        assertThrows(LettermintConfigException.class, () -> client.team().members().remove(".."));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        assertThrows(LettermintConfigException.class, () -> sending.team().members().remove("u1"));
+        assertEquals(before, server.requests().size());
+    }
+
+    @Test
+    void filtersTeamMembersByProject() {
+        server.enqueue(FakeServer.Response.json(200, page(null, "u1")));
+        client.team().members().list(ListTeamMembersQuery.builder().filterProjectId("p1").build());
+        assertTeamRequest("GET", "/v1/team/members");
+        assertEquals("filter%5Bproject_id%5D=p1", server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, page("c2", "u1")));
+        server.enqueue(FakeServer.Response.json(200, page(null, "u2")));
+        client.team().members().iterate(ListTeamMembersQuery.builder().pageSize(1).filterProjectId("p1").build()).forEach(item -> { });
+        assertEquals("page%5Bsize%5D=1&page%5Bcursor%5D=c2&filter%5Bproject_id%5D=p1", server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, page(null)));
+        assertTrue(client.team().members().list().data().isEmpty());
+        assertNull(server.last().rawQuery());
     }
 
     @Test

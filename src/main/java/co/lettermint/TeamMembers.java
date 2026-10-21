@@ -2,6 +2,7 @@ package co.lettermint;
 
 import co.lettermint.types.CursorPage;
 import co.lettermint.types.ListTeamMembersQuery;
+import co.lettermint.types.MessageResponse;
 import co.lettermint.types.Operations;
 import co.lettermint.types.TeamMemberData;
 import co.lettermint.types.UpdateTeamMemberAssignmentData;
@@ -24,7 +25,8 @@ public final class TeamMembers {
     }
 
     /**
-     * Lists team members, one page at a time.
+     * Lists team members, one page at a time. {@code filterProjectId} limits the list to members who
+     * can access that project.
      *
      * @param query the query parameters, or null
      * @return the response
@@ -116,6 +118,27 @@ public final class TeamMembers {
      */
     public TeamMemberData updateAssignment(String userId, UpdateTeamMemberAssignmentData body, RequestOptions options) {
         return transport.call(Operations.UPDATE_TEAM_MEMBER_ASSIGNMENT, Transport.call("team.members.updateAssignment").path(userId).body(body).options(options));
+    }
+
+    /**
+     * Removes a member from the team. The Owner can't be removed.
+     *
+     * @param userId the user id
+     * @return the response
+     */
+    public MessageResponse remove(String userId) {
+        return remove(userId, null);
+    }
+
+    /**
+     * Removes a member from the team. The Owner can't be removed.
+     *
+     * @param userId the user id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public MessageResponse remove(String userId, RequestOptions options) {
+        return transport.call(Operations.DELETE_TEAM_MEMBER, Transport.call("team.members.remove").path(userId).options(options));
     }
 
     @Override
