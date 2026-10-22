@@ -21,7 +21,7 @@ repositories {
 
 dependencies {
     // Generated types use Jackson annotations and TypeReference in their public API.
-    api 'com.fasterxml.jackson.core:jackson-databind:2.22.3'
+    api 'com.fasterxml.jackson.core:jackson-databind:2.22.4'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
