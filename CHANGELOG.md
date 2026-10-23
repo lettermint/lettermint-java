@@ -19,6 +19,22 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v3.2.0](https://github.com/lettermint/lettermint-java/compare/v3.1.0...v3.2.0) - 2026-10-23
+
+### What's Changed
+
+* chore(deps): bump gradle-wrapper from 9.6.1 to 9.8.1 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/62
+* chore(deps): bump actions/create-github-app-token from 3.2.0 to 3.3.0 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/61
+* feat: add messages resend by @bjarn in https://github.com/lettermint/lettermint-java/pull/63
+* feat: add per-email idempotency keys to batch send by @bjarn in https://github.com/lettermint/lettermint-java/pull/64
+* feat: add webhook delivery retry by @bjarn in https://github.com/lettermint/lettermint-java/pull/66
+* feat: add team invites by @bjarn in https://github.com/lettermint/lettermint-java/pull/67
+* feat: add team role management by @bjarn in https://github.com/lettermint/lettermint-java/pull/68
+* feat: add team member removal and a project filter for the member list by @bjarn in https://github.com/lettermint/lettermint-java/pull/69
+* chore(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.22.3 to 2.22.4 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/71
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v3.1.0...v3.2.0
+
 ## [v3.1.0](https://github.com/lettermint/lettermint-java/compare/v3.0.0...v3.1.0) - 2026-10-11
 
 ### What's Changed
