@@ -11,6 +11,7 @@ import co.lettermint.exceptions.AuthenticationException;
 import co.lettermint.exceptions.ConflictException;
 import co.lettermint.exceptions.LettermintConfigException;
 import co.lettermint.exceptions.NotFoundException;
+import co.lettermint.exceptions.PermissionException;
 import co.lettermint.exceptions.RateLimitException;
 import co.lettermint.exceptions.UnexpectedResponseException;
 import co.lettermint.exceptions.ValidationException;
@@ -28,6 +29,8 @@ import co.lettermint.types.GetStatsQuery;
 import co.lettermint.types.ListDomainsQuery;
 import co.lettermint.types.ListProjectApiTokensQuery;
 import co.lettermint.types.ListProjectApiTokensQuerySortItem;
+import co.lettermint.types.ListTeamApiTokensQuery;
+import co.lettermint.types.ListTeamApiTokensQuerySortItem;
 import co.lettermint.types.ListTeamInvitesQuery;
 import co.lettermint.types.ListTeamMembersQuery;
 import co.lettermint.types.ListWebhookDeliveriesQuery;
@@ -49,9 +52,12 @@ import co.lettermint.types.StoreProjectApiTokenData;
 import co.lettermint.types.StoreProjectData;
 import co.lettermint.types.StoreRouteData;
 import co.lettermint.types.StoreSuppressionData;
+import co.lettermint.types.StoreTeamApiTokenData;
 import co.lettermint.types.StoreWebhookData;
 import co.lettermint.types.SuppressionCreateReason;
 import co.lettermint.types.SuppressionCreateScope;
+import co.lettermint.types.TeamApiToken;
+import co.lettermint.types.TeamApiTokenCreatedResponse;
 import co.lettermint.types.TeamInviteData;
 import co.lettermint.types.TeamRoleData;
 import co.lettermint.types.UpdateDomainProjectsData;
@@ -205,6 +211,10 @@ class TeamApiTest {
                 () -> client.team().updateRole("role1", UpdateTeamRoleData.builder().name("Support").permissions(List.of()).build()),
                 () -> client.team().deleteRole("role1"),
                 () -> client.team().duplicateRole("role1", DuplicateTeamRoleData.builder().name("Support 2").build()),
+                () -> client.team().apiTokens().list(),
+                () -> client.team().apiTokens().iterate().forEach(item -> { }),
+                () -> client.team().apiTokens().create(new StoreTeamApiTokenData("CI", List.of("read:projects"), null)),
+                () -> client.team().apiTokens().delete("t1"),
                 () -> client.team().members().list(),
                 () -> client.team().members().iterate().forEach(item -> { }),
                 () -> client.team().members().retrieve("u1"),
@@ -238,10 +248,7 @@ class TeamApiTest {
         for (FakeServer.Request request : server.requests()) {
             reached.add(operationKey(request));
         }
-        Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
-        // The team API token operations are added by the next PR, which removes this list.
-        expected.removeAll(Set.of("GET /team/api-tokens", "POST /team/api-tokens", "DELETE /team/api-tokens/{tokenId}"));
-        assertEquals(expected, reached);
+        assertEquals(new TreeSet<>(Operations.ALL.keySet()), reached);
     }
 
     @Test
@@ -715,6 +722,110 @@ class TeamApiTest {
 
         server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
         assertThrows(NotFoundException.class, () -> client.projects().apiTokens().delete("p1", "t1"));
+    }
+
+    private static final String TEAM_TOKEN = "{\"id\":\"t 1\",\"name\":\"Terraform\",\"abilities\":[\"read:projects\",\"write:projects\"],"
+            + "\"allowed_ips\":[\"203.0.113.0/24\"],\"created_via\":\"api\",\"expires_at\":\"2027-01-01T00:00:00.000000Z\",\"last_used_at\":null,"
+            + "\"created_at\":\"2026-10-20T09:00:00.000000Z\"}";
+
+    @Test
+    void createsTeamApiTokens() {
+        server.enqueue(FakeServer.Response.json(201, "{\"data\":" + TEAM_TOKEN.replace("}", ",\"token\":\"lm_team_secret\"}")
+                + ",\"message\":\"Token created.\"}"));
+        TeamApiTokenCreatedResponse created = client.team().apiTokens().create(StoreTeamApiTokenData.builder().name("Terraform")
+                .abilities(List.of("read:projects", "write:projects")).expiresAt("2027-01-01T00:00:00Z").build());
+        assertTeamRequest("POST", "/v1/team/api-tokens");
+        assertTrue(server.last().header("content-type").startsWith("application/json"));
+        assertEquals("{\"name\":\"Terraform\",\"abilities\":[\"read:projects\",\"write:projects\"],\"expires_at\":\"2027-01-01T00:00:00Z\"}",
+                server.last().body());
+        assertEquals("t 1", created.data().id());
+        assertEquals("lm_team_secret", created.data().token());
+        assertEquals(List.of("read:projects", "write:projects"), created.data().abilities());
+        assertEquals(List.of("203.0.113.0/24"), created.data().allowedIps());
+        assertEquals(ApiTokenSource.API, created.data().createdVia());
+        assertEquals("2027-01-01T00:00:00.000000Z", created.data().expiresAt());
+        assertEquals("Token created.", created.message());
+        assertTrue(created.data().toString().contains("token=[redacted]"));
+        assertFalse(created.toString().contains("lm_team_secret"));
+
+        server.enqueue(FakeServer.Response.json(201, "{\"data\":{\"id\":\"t2\",\"token\":\"lm_team_x\"},\"message\":\"Token created.\"}"));
+        client.team().apiTokens().create(StoreTeamApiTokenData.builder().name("CI").abilities(List.of("*")).build(),
+                RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertEquals("{\"name\":\"CI\",\"abilities\":[\"*\"]}", server.last().body());
+
+        server.enqueue(FakeServer.Response.json(201, "{\"data\":{\"id\":\"t3\",\"token\":\"lm_team_y\"},\"message\":\"Token created.\"}"));
+        client.team().apiTokens().create(StoreTeamApiTokenData.builder().name("CI").abilities(List.of()).expiresAt(null).build());
+        assertEquals("{\"name\":\"CI\",\"abilities\":[],\"expires_at\":null}", server.last().body());
+    }
+
+    @Test
+    void listsAndDeletesTeamApiTokens() {
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":[" + TEAM_TOKEN + "],\"path\":null,\"per_page\":2,\"next_cursor\":\"c2\","
+                + "\"next_page_url\":null,\"prev_cursor\":null,\"prev_page_url\":null}"));
+        CursorPage<TeamApiToken> page = client.team().apiTokens().list(ListTeamApiTokensQuery.builder().pageSize(2).pageCursor("c1")
+                .sort(List.of(ListTeamApiTokensQuerySortItem.CREATED_AT_DESC)).build());
+        assertTeamRequest("GET", "/v1/team/api-tokens");
+        assertEquals("page%5Bsize%5D=2&page%5Bcursor%5D=c1&sort=-created_at", server.last().rawQuery());
+        TeamApiToken token = page.data().get(0);
+        assertEquals("Terraform", token.name());
+        assertEquals(List.of("read:projects", "write:projects"), token.abilities());
+        assertEquals("2027-01-01T00:00:00.000000Z", token.expiresAt());
+        assertNull(token.lastUsedAt());
+        assertEquals("c2", page.nextCursor());
+
+        server.enqueue(FakeServer.Response.json(200, page(null)));
+        assertTrue(client.team().apiTokens().list().data().isEmpty());
+        assertNull(server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, page("c2", "t1", "t2")));
+        server.enqueue(FakeServer.Response.json(200, page(null, "t3")));
+        List<String> ids = client.team().apiTokens().iterate(ListTeamApiTokensQuery.builder().pageSize(2).build()).stream()
+                .map(TeamApiToken::id).toList();
+        assertEquals(List.of("t1", "t2", "t3"), ids);
+        assertTeamRequest("GET", "/v1/team/api-tokens");
+        assertEquals("page%5Bsize%5D=2&page%5Bcursor%5D=c2", server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Token deleted.\"}"));
+        MessageResponse deleted = client.team().apiTokens().delete("t 1");
+        assertTeamRequest("DELETE", "/v1/team/api-tokens/t%201");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertEquals("Token deleted.", deleted.message());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Token deleted.\"}"));
+        client.team().apiTokens().delete("t1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("DELETE", "/v1/team/api-tokens/t1");
+    }
+
+    @Test
+    void teamApiTokensValidateIdsAndNeedTheTeamToken() {
+        assertThrows(LettermintConfigException.class, () -> client.team().apiTokens().delete(""));
+        assertThrows(LettermintConfigException.class, () -> client.team().apiTokens().delete(".."));
+        assertThrows(LettermintConfigException.class, () -> client.team().apiTokens().delete(null));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        LettermintConfigException missing = assertThrows(LettermintConfigException.class, () -> sending.team().apiTokens().list());
+        assertTrue(missing.getMessage().startsWith("team.apiTokens.list needs teamToken"), missing.getMessage());
+        assertThrows(LettermintConfigException.class,
+                () -> sending.team().apiTokens().create(new StoreTeamApiTokenData("CI", List.of("read:projects"), null)));
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void teamApiTokenErrorsMapToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(422, "{\"message\":\"The token can't have abilities you don't have.\","
+                + "\"errors\":{\"abilities\":[\"The token can't have abilities you don't have.\"]}}"));
+        ValidationException invalid = assertThrows(ValidationException.class,
+                () -> client.team().apiTokens().create(new StoreTeamApiTokenData("CI", List.of("write:team"), null)));
+        assertEquals(422, invalid.getStatus());
+        assertEquals(List.of("The token can't have abilities you don't have."), invalid.getErrors().get("abilities"));
+
+        server.enqueue(FakeServer.Response.json(403, "{\"error\":{\"code\":\"forbidden\",\"message\":\"This action is unauthorized.\"}}"));
+        PermissionException forbidden = assertThrows(PermissionException.class, () -> client.team().apiTokens().delete("t1"));
+        assertEquals(403, forbidden.getStatus());
+        assertEquals("This action is unauthorized.", forbidden.getMessage());
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.team().apiTokens().delete("t1"));
     }
 
     @Test

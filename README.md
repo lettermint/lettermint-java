@@ -282,6 +282,7 @@ String html = lettermint.messages().html("message-id");
 | `team()` | `retrieve`, `update`, `usage`, `roles`, `retrieveRole`, `createRole`, `updateRole`, `deleteRole`, `duplicateRole` |
 | `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment`, `remove` |
 | `team().invites()` | `list`, `iterate`, `retrieve`, `create`, `update`, `revoke` |
+| `team().apiTokens()` | `list`, `iterate`, `create`, `delete` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
 | `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)`, `retry(webhookId, deliveryId)` |
 | (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
@@ -319,6 +320,22 @@ TeamRoleData role = lettermint.team().createRole(CreateTeamRoleData.builder()
     .build());
 lettermint.team().duplicateRole(role.id(), DuplicateTeamRoleData.builder().name("Support (EU)").build());
 lettermint.team().deleteRole(role.id(), new DeleteTeamRoleQuery(replacementRoleId));
+```
+
+`team().apiTokens().create(...)` creates a team API token. The new token can only have abilities that the requesting token has. It copies the requesting token's IP allowlist, and it can't outlive the requesting token (`expiresAt` defaults to the requesting token's expiry). The token is only returned once. `delete(tokenId)` makes a token stop working immediately; a token can only delete tokens whose abilities it also has:
+
+```java
+TeamApiTokenCreatedResponse created = lettermint.team().apiTokens().create(StoreTeamApiTokenData.builder()
+    .name("Terraform")
+    .abilities(List.of("read:domains", "write:projects"))
+    .expiresAt("2027-01-01T00:00:00Z")
+    .build());
+String token = created.data().token(); // store it now; it is only returned once
+
+for (TeamApiToken apiToken : lettermint.team().apiTokens().iterate()) {
+    System.out.println(apiToken.name() + " " + apiToken.abilities());
+}
+lettermint.team().apiTokens().delete(created.data().id());
 ```
 
 `team().members().remove(userId)` removes a member from the team; the Owner can't be removed. `ListTeamMembersQuery.filterProjectId(...)` limits the member list to members who can access that project: members with access to all projects and members selected for it.
@@ -456,7 +473,7 @@ try {
 }
 ```
 
-Exceptions never contain request headers or tokens, and `toString()` of the client, its builder and its sub-clients shows tokens as `[redacted]`. Records that carry credentials, such as `ProjectCreatedData.apiToken()`, `ProjectApiTokenSecret.token()` or `WebhookSecretData.secret()`, also print them as `[redacted]`.
+Exceptions never contain request headers or tokens, and `toString()` of the client, its builder and its sub-clients shows tokens as `[redacted]`. Records that carry credentials, such as `ProjectCreatedData.apiToken()`, `ProjectApiTokenSecret.token()`, `TeamApiTokenSecret.token()` or `WebhookSecretData.secret()`, also print them as `[redacted]`.
 
 ## Webhooks
 
