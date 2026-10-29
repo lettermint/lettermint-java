@@ -17,10 +17,12 @@ import co.lettermint.types.UpdateProjectData;
 public final class Projects {
     private final Transport transport;
     private final ReportForwarding reportForwarding;
+    private final ProjectApiTokens apiTokens;
 
     Projects(Transport transport) {
         this.transport = transport;
         this.reportForwarding = new ReportForwarding(transport);
+        this.apiTokens = new ProjectApiTokens(transport);
     }
 
     /**
@@ -28,6 +30,13 @@ public final class Projects {
      */
     public ReportForwarding reportForwarding() {
         return reportForwarding;
+    }
+
+    /**
+     * @return API tokens of a project
+     */
+    public ProjectApiTokens apiTokens() {
+        return apiTokens;
     }
 
     /**
@@ -189,7 +198,8 @@ public final class Projects {
     }
 
     /**
-     * Rotates the project's legacy sending token. The API marks this endpoint as legacy.
+     * Rotates the project's legacy sending token. The API marks this endpoint as legacy; use
+     * {@link #apiTokens()} to list, create and delete specific tokens.
      *
      * @param projectId the project id
      * @return the response
@@ -201,7 +211,8 @@ public final class Projects {
     }
 
     /**
-     * Rotates the project's legacy sending token. The API marks this endpoint as legacy.
+     * Rotates the project's legacy sending token. The API marks this endpoint as legacy; use
+     * {@link #apiTokens()} to list, create and delete specific tokens.
      *
      * @param projectId the project id
      * @param options per-call options, or null

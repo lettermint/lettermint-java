@@ -1,6 +1,7 @@
 package co.lettermint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,6 +16,7 @@ import co.lettermint.exceptions.UnexpectedResponseException;
 import co.lettermint.exceptions.ValidationException;
 import co.lettermint.types.AnalyticsMetric;
 import co.lettermint.types.AnalyticsQuery;
+import co.lettermint.types.ApiTokenSource;
 import co.lettermint.types.CreateTeamInviteData;
 import co.lettermint.types.CreateTeamInviteDataProjectAccess;
 import co.lettermint.types.CreateTeamRoleData;
@@ -24,6 +26,8 @@ import co.lettermint.types.DomainListData;
 import co.lettermint.types.DuplicateTeamRoleData;
 import co.lettermint.types.GetStatsQuery;
 import co.lettermint.types.ListDomainsQuery;
+import co.lettermint.types.ListProjectApiTokensQuery;
+import co.lettermint.types.ListProjectApiTokensQuerySortItem;
 import co.lettermint.types.ListTeamInvitesQuery;
 import co.lettermint.types.ListTeamMembersQuery;
 import co.lettermint.types.ListWebhookDeliveriesQuery;
@@ -31,6 +35,8 @@ import co.lettermint.types.MessageData;
 import co.lettermint.types.MessageResponse;
 import co.lettermint.types.Operations;
 import co.lettermint.types.PendingSendMailResponse;
+import co.lettermint.types.ProjectApiToken;
+import co.lettermint.types.ProjectApiTokenCreatedResponse;
 import co.lettermint.types.ProjectAccessScope;
 import co.lettermint.types.RbacPermission;
 import co.lettermint.types.ReportForwardingRequest;
@@ -39,6 +45,7 @@ import co.lettermint.types.ResendMessageRequest;
 import co.lettermint.types.RetryWebhookDeliveryResponse;
 import co.lettermint.types.RouteType;
 import co.lettermint.types.StoreDomainData;
+import co.lettermint.types.StoreProjectApiTokenData;
 import co.lettermint.types.StoreProjectData;
 import co.lettermint.types.StoreRouteData;
 import co.lettermint.types.StoreSuppressionData;
@@ -167,6 +174,10 @@ class TeamApiTest {
                 () -> client.projects().update("p1", UpdateProjectData.builder().name("Renamed").build()),
                 () -> client.projects().delete("p1"),
                 () -> rotateToken("p1"),
+                () -> client.projects().apiTokens().list("p1"),
+                () -> client.projects().apiTokens().iterate("p1").forEach(item -> { }),
+                () -> client.projects().apiTokens().create("p1", new StoreProjectApiTokenData("Production", null)),
+                () -> client.projects().apiTokens().delete("p1", "t1"),
                 () -> client.projects().reportForwarding().retrieve("p1"),
                 () -> client.projects().reportForwarding().update("p1", new ReportForwardingRequest("dmarc@acme.com")),
                 () -> client.projects().reportForwarding().delete("p1"),
@@ -227,7 +238,10 @@ class TeamApiTest {
         for (FakeServer.Request request : server.requests()) {
             reached.add(operationKey(request));
         }
-        assertEquals(new TreeSet<>(Operations.ALL.keySet()), reached);
+        Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
+        // The team API token operations are added by the next PR, which removes this list.
+        expected.removeAll(Set.of("GET /team/api-tokens", "POST /team/api-tokens", "DELETE /team/api-tokens/{tokenId}"));
+        assertEquals(expected, reached);
     }
 
     @Test
@@ -604,6 +618,103 @@ class TeamApiTest {
         server.enqueue(FakeServer.Response.json(200, page(null)));
         assertTrue(client.team().members().list().data().isEmpty());
         assertNull(server.last().rawQuery());
+    }
+
+    private static final String PROJECT_TOKEN = "{\"id\":\"t 1\",\"project_id\":\"p 1\",\"name\":\"Production\",\"short_token\":false,"
+            + "\"created_via\":\"api\",\"allowed_ips\":[],\"last_used_at\":null,\"created_at\":\"2026-10-20T09:00:00.000000Z\"}";
+
+    @Test
+    void createsProjectApiTokens() {
+        server.enqueue(FakeServer.Response.json(201, "{\"data\":{\"id\":\"t 1\",\"project_id\":\"p 1\",\"name\":\"Production\","
+                + "\"short_token\":false,\"created_via\":\"api\",\"allowed_ips\":[],\"last_used_at\":null,\"created_at\":\"2026-10-20T09:00:00.000000Z\","
+                + "\"token\":\"lm_secret\"},\"smtp\":{\"host\":\"smtp.lettermint.co\",\"ports\":[465,587],\"username\":\"lettermint\"},"
+                + "\"message\":\"Token created.\"}"));
+        ProjectApiTokenCreatedResponse created = client.projects().apiTokens().create("p 1", new StoreProjectApiTokenData("Production", null));
+        assertTeamRequest("POST", "/v1/projects/p%201/api-tokens");
+        assertTrue(server.last().header("content-type").startsWith("application/json"));
+        assertEquals("{\"name\":\"Production\"}", server.last().body());
+        assertEquals("t 1", created.data().id());
+        assertEquals("p 1", created.data().projectId());
+        assertEquals("lm_secret", created.data().token());
+        assertEquals(ApiTokenSource.API, created.data().createdVia());
+        assertEquals("smtp.lettermint.co", created.smtp().host());
+        assertEquals(List.of(465L, 587L), created.smtp().ports());
+        assertEquals("lettermint", created.smtp().username());
+        assertEquals("Token created.", created.message());
+        assertTrue(created.data().toString().contains("token=[redacted]"));
+        assertFalse(created.toString().contains("lm_secret"));
+
+        server.enqueue(FakeServer.Response.json(201, "{\"data\":{\"id\":\"t2\",\"token\":\"lm_short\"},\"smtp\":null,\"message\":\"Token created.\"}"));
+        ProjectApiTokenCreatedResponse shortToken = client.projects().apiTokens().create("p1",
+                StoreProjectApiTokenData.builder().name("Printer").shortToken(true).build(), RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("POST", "/v1/projects/p1/api-tokens");
+        assertEquals("{\"name\":\"Printer\",\"short_token\":true}", server.last().body());
+        assertNull(shortToken.smtp());
+    }
+
+    @Test
+    void listsAndDeletesProjectApiTokens() {
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":[" + PROJECT_TOKEN + "],\"path\":null,\"per_page\":2,\"next_cursor\":\"c2\","
+                + "\"next_page_url\":null,\"prev_cursor\":null,\"prev_page_url\":null}"));
+        CursorPage<ProjectApiToken> page = client.projects().apiTokens().list("p 1", ListProjectApiTokensQuery.builder().pageSize(2).pageCursor("c1")
+                .sort(List.of(ListProjectApiTokensQuerySortItem.NAME)).build());
+        assertTeamRequest("GET", "/v1/projects/p%201/api-tokens");
+        assertEquals("page%5Bsize%5D=2&page%5Bcursor%5D=c1&sort=name", server.last().rawQuery());
+        ProjectApiToken token = page.data().get(0);
+        assertEquals("t 1", token.id());
+        assertEquals("Production", token.name());
+        assertFalse(token.shortToken());
+        assertEquals(List.of(), token.allowedIps());
+        assertNull(token.lastUsedAt());
+        assertEquals("c2", page.nextCursor());
+
+        server.enqueue(FakeServer.Response.json(200, page(null)));
+        assertTrue(client.projects().apiTokens().list("p1").data().isEmpty());
+        assertNull(server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, page("c2", "t1", "t2")));
+        server.enqueue(FakeServer.Response.json(200, page(null, "t3")));
+        List<String> ids = client.projects().apiTokens().iterate("p1", ListProjectApiTokensQuery.builder().pageSize(2).build()).stream()
+                .map(ProjectApiToken::id).toList();
+        assertEquals(List.of("t1", "t2", "t3"), ids);
+        assertTeamRequest("GET", "/v1/projects/p1/api-tokens");
+        assertEquals("page%5Bsize%5D=2&page%5Bcursor%5D=c2", server.last().rawQuery());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Token deleted.\"}"));
+        MessageResponse deleted = client.projects().apiTokens().delete("p 1", "t 1");
+        assertTeamRequest("DELETE", "/v1/projects/p%201/api-tokens/t%201");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertEquals("Token deleted.", deleted.message());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"message\":\"Token deleted.\"}"));
+        client.projects().apiTokens().delete("p1", "t1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("DELETE", "/v1/projects/p1/api-tokens/t1");
+    }
+
+    @Test
+    void projectApiTokensValidateIdsAndNeedTheTeamToken() {
+        StoreProjectApiTokenData body = new StoreProjectApiTokenData("Production", null);
+        assertThrows(LettermintConfigException.class, () -> client.projects().apiTokens().list(""));
+        assertThrows(LettermintConfigException.class, () -> client.projects().apiTokens().create("..", body));
+        assertThrows(LettermintConfigException.class, () -> client.projects().apiTokens().delete(null, "t1"));
+        assertThrows(LettermintConfigException.class, () -> client.projects().apiTokens().delete("p1", ""));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        LettermintConfigException missing = assertThrows(LettermintConfigException.class, () -> sending.projects().apiTokens().create("p1", body));
+        assertTrue(missing.getMessage().startsWith("projects.apiTokens.create needs teamToken"), missing.getMessage());
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void projectApiTokenErrorsMapToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(422, "{\"message\":\"The name field is required.\",\"errors\":{\"name\":[\"The name field is required.\"]}}"));
+        ValidationException invalid = assertThrows(ValidationException.class,
+                () -> client.projects().apiTokens().create("p1", StoreProjectApiTokenData.builder().build()));
+        assertEquals(422, invalid.getStatus());
+        assertEquals(List.of("The name field is required."), invalid.getErrors().get("name"));
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.projects().apiTokens().delete("p1", "t1"));
     }
 
     @Test

@@ -274,6 +274,7 @@ String html = lettermint.messages().html("message-id");
 | `domains()` | `list`, `iterate`, `create`, `retrieve`, `delete`, `verifyDnsRecords`, `verifyDnsRecord`, `updateProjects` |
 | `messages()` | `list`, `iterate`, `retrieve`, `events`, `iterateEvents`, `source`, `html`, `text`, `reschedule`, `cancel`, `process`, `resend` |
 | `projects()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `rotateToken` |
+| `projects().apiTokens()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `delete(projectId, tokenId)` |
 | `projects().reportForwarding()` | `retrieve`, `update`, `delete`, `verify`, `resendCode` |
 | `routes()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `retrieve`, `update`, `delete`, `verifyInboundDomain` |
 | `stats()` | `retrieve` |
@@ -286,6 +287,19 @@ String html = lettermint.messages().html("message-id");
 | (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
 
 `webhooks().deliveries().retry(webhookId, deliveryId)` sends a delivery's original payload to the webhook again now; it throws a `ConflictException` when the webhook is disabled, the delivery cannot be retried, or a retry is already in progress.
+
+`projects().apiTokens().create(projectId, ...)` creates a project API token. The token is only returned once: use it to send through the API, or as the SMTP password when SMTP is enabled for the project (`smtp()` then holds the host, ports and username). `list` and `iterate` return the tokens without their values, and `delete` makes a token stop working immediately:
+
+```java
+ProjectApiTokenCreatedResponse created = lettermint.projects().apiTokens().create(projectId,
+    StoreProjectApiTokenData.builder().name("Production").build());
+String token = created.data().token(); // store it now; it is only returned once
+
+for (ProjectApiToken apiToken : lettermint.projects().apiTokens().iterate(projectId)) {
+    System.out.println(apiToken.name() + " " + apiToken.lastUsedAt());
+}
+lettermint.projects().apiTokens().delete(projectId, created.data().id());
+```
 
 `team().invites().create(...)` invites a person and sends the invitation email; the team needs a free seat, and the Owner role can't be assigned. `update(inviteId, ...)` replaces a pending invitation's email, role and project access, and sends a new email only when the address changes:
 
@@ -442,7 +456,7 @@ try {
 }
 ```
 
-Exceptions never contain request headers or tokens, and `toString()` of the client, its builder and its sub-clients shows tokens as `[redacted]`. Records that carry credentials, such as `ProjectCreatedData.apiToken()` or `WebhookSecretData.secret()`, also print them as `[redacted]`.
+Exceptions never contain request headers or tokens, and `toString()` of the client, its builder and its sub-clients shows tokens as `[redacted]`. Records that carry credentials, such as `ProjectCreatedData.apiToken()`, `ProjectApiTokenSecret.token()` or `WebhookSecretData.secret()`, also print them as `[redacted]`.
 
 ## Webhooks
 
