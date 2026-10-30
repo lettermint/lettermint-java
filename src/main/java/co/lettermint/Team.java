@@ -19,11 +19,13 @@ public final class Team {
     private final Transport transport;
     private final TeamMembers members;
     private final TeamInvites invites;
+    private final TeamApiTokens apiTokens;
 
     Team(Transport transport) {
         this.transport = transport;
         this.members = new TeamMembers(transport);
         this.invites = new TeamInvites(transport);
+        this.apiTokens = new TeamApiTokens(transport);
     }
 
     /**
@@ -38,6 +40,13 @@ public final class Team {
      */
     public TeamInvites invites() {
         return invites;
+    }
+
+    /**
+     * @return team API tokens
+     */
+    public TeamApiTokens apiTokens() {
+        return apiTokens;
     }
 
     /**
