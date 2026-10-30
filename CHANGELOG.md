@@ -19,6 +19,17 @@
 
 * add contentType parameter to Attachment and EmailEndpoint.attach method ([bfcffe4](https://github.com/lettermint/lettermint-java/commit/bfcffe4e38927a54608cff4d58ef366fda1adcc9))
 
+## [v3.3.0](https://github.com/lettermint/lettermint-java/compare/v3.2.0...v3.3.0) - 2026-10-30
+
+### What's Changed
+
+* feat: add the inbound.rejected webhook event by @bjarn in https://github.com/lettermint/lettermint-java/pull/72
+* chore(deps): bump gradle-wrapper from 9.8.1 to 9.8.2 by @dependabot[bot] in https://github.com/lettermint/lettermint-java/pull/73
+* feat: manage project API tokens by @bjarn in https://github.com/lettermint/lettermint-java/pull/74
+* feat: manage team API tokens by @bjarn in https://github.com/lettermint/lettermint-java/pull/75
+
+**Full Changelog**: https://github.com/lettermint/lettermint-java/compare/v3.2.0...v3.3.0
+
 ## [v3.2.0](https://github.com/lettermint/lettermint-java/compare/v3.1.0...v3.2.0) - 2026-10-23
 
 ### What's Changed
