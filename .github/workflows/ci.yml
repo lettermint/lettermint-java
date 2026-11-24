@@ -74,3 +74,15 @@ jobs:
           jar=$(ls build/libs/lettermint-*.jar | grep -v -e sources -e javadoc)
           unzip -p "$jar" META-INF/MANIFEST.MF | grep -q 'Automatic-Module-Name: co.lettermint'
           if unzip -l "$jar" | grep -q okhttp; then echo "okhttp must not be bundled"; exit 1; fi
+
+  # The one check branch protection requires. It fails when a job above failed or
+  # was cancelled; skipped jobs count as passed.
+  ci:
+    name: ci
+    if: ${{ always() }}
+    needs: [test, build]
+    runs-on: ubuntu-slim
+    steps:
+      - name: Fail when a job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
