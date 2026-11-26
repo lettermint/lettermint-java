@@ -200,7 +200,8 @@ public final class Domains {
     }
 
     /**
-     * Replaces the projects that may send from the domain.
+     * Replaces the projects that may send from the domain. An empty list makes the domain available
+     * to every project in the team.
      *
      * @param domainId the domain id
      * @param body the request body
@@ -211,7 +212,8 @@ public final class Domains {
     }
 
     /**
-     * Replaces the projects that may send from the domain.
+     * Replaces the projects that may send from the domain. An empty list makes the domain available
+     * to every project in the team.
      *
      * @param domainId the domain id
      * @param body the request body

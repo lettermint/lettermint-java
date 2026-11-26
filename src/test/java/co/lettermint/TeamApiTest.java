@@ -56,6 +56,7 @@ import co.lettermint.types.StoreTeamApiTokenData;
 import co.lettermint.types.StoreWebhookData;
 import co.lettermint.types.SuppressionCreateReason;
 import co.lettermint.types.SuppressionCreateScope;
+import co.lettermint.types.SuppressionStoreResponse;
 import co.lettermint.types.TeamApiToken;
 import co.lettermint.types.TeamApiTokenCreatedResponse;
 import co.lettermint.types.TeamInviteData;
@@ -63,6 +64,7 @@ import co.lettermint.types.TeamRoleData;
 import co.lettermint.types.UpdateDomainProjectsData;
 import co.lettermint.types.UpdateProjectData;
 import co.lettermint.types.UpdateRouteData;
+import co.lettermint.types.UpdateTeamApiTokenData;
 import co.lettermint.types.UpdateTeamData;
 import co.lettermint.types.UpdateTeamInviteData;
 import co.lettermint.types.UpdateTeamInviteDataProjectAccess;
@@ -214,6 +216,7 @@ class TeamApiTest {
                 () -> client.team().apiTokens().list(),
                 () -> client.team().apiTokens().iterate().forEach(item -> { }),
                 () -> client.team().apiTokens().create(new StoreTeamApiTokenData("CI", List.of("read:projects"), null)),
+                () -> client.team().apiTokens().update("t1", UpdateTeamApiTokenData.builder().name("CI").build()),
                 () -> client.team().apiTokens().delete("t1"),
                 () -> client.team().members().list(),
                 () -> client.team().members().iterate().forEach(item -> { }),
@@ -248,7 +251,19 @@ class TeamApiTest {
         for (FakeServer.Request request : server.requests()) {
             reached.add(operationKey(request));
         }
-        assertEquals(new TreeSet<>(Operations.ALL.keySet()), reached);
+        Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
+        // The DKIM upgrade and rotation operations and the project tracking domain operations are
+        // added by the next PRs, which remove this list.
+        expected.removeAll(Set.of(
+                "POST /domains/{domainId}/dkim/upgrade",
+                "DELETE /domains/{domainId}/dkim/upgrade",
+                "POST /domains/{domainId}/dkim/upgrade/activate",
+                "POST /domains/{domainId}/dkim/rotate",
+                "GET /projects/{projectId}/tracking-domain",
+                "PUT /projects/{projectId}/tracking-domain",
+                "DELETE /projects/{projectId}/tracking-domain",
+                "POST /projects/{projectId}/tracking-domain/verify"));
+        assertEquals(expected, reached);
     }
 
     @Test
@@ -826,6 +841,105 @@ class TeamApiTest {
 
         server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
         assertThrows(NotFoundException.class, () -> client.team().apiTokens().delete("t1"));
+    }
+
+    @Test
+    void updatesTeamApiTokens() {
+        server.enqueue(FakeServer.Response.json(200, TEAM_TOKEN));
+        TeamApiToken updated = client.team().apiTokens().update("t 1", UpdateTeamApiTokenData.builder().name("Terraform")
+                .abilities(List.of("read:projects", "write:projects")).build());
+        assertTeamRequest("PUT", "/v1/team/api-tokens/t%201");
+        assertTrue(server.last().header("content-type").startsWith("application/json"));
+        assertEquals("{\"name\":\"Terraform\",\"abilities\":[\"read:projects\",\"write:projects\"]}", server.last().body());
+        assertEquals("t 1", updated.id());
+        assertEquals("Terraform", updated.name());
+        assertEquals(List.of("read:projects", "write:projects"), updated.abilities());
+        assertEquals(List.of("203.0.113.0/24"), updated.allowedIps());
+        assertEquals(ApiTokenSource.API, updated.createdVia());
+        assertEquals("2027-01-01T00:00:00.000000Z", updated.expiresAt());
+
+        server.enqueue(FakeServer.Response.json(200, TEAM_TOKEN));
+        client.team().apiTokens().update("t1", UpdateTeamApiTokenData.builder().name("Renamed").build(),
+                RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("PUT", "/v1/team/api-tokens/t1");
+        assertEquals("{\"name\":\"Renamed\"}", server.last().body());
+
+        server.enqueue(FakeServer.Response.json(200, TEAM_TOKEN));
+        client.team().apiTokens().update("t1", new UpdateTeamApiTokenData(null, List.of("read:domains")));
+        assertEquals("{\"abilities\":[\"read:domains\"]}", server.last().body());
+
+        server.enqueue(FakeServer.Response.json(200, TEAM_TOKEN));
+        client.team().apiTokens().update("t1", UpdateTeamApiTokenData.builder().build());
+        assertEquals("{}", server.last().body());
+    }
+
+    @Test
+    void teamApiTokenUpdatesValidateIdsAndNeedTheTeamToken() {
+        UpdateTeamApiTokenData body = UpdateTeamApiTokenData.builder().name("CI").build();
+        assertThrows(LettermintConfigException.class, () -> client.team().apiTokens().update("", body));
+        assertThrows(LettermintConfigException.class, () -> client.team().apiTokens().update("..", body));
+        assertThrows(LettermintConfigException.class, () -> client.team().apiTokens().update(null, body));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        LettermintConfigException missing = assertThrows(LettermintConfigException.class, () -> sending.team().apiTokens().update("t1", body));
+        assertTrue(missing.getMessage().startsWith("team.apiTokens.update needs teamToken"), missing.getMessage());
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void teamApiTokenUpdateErrorsMapToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(422, "{\"message\":\"The token can't have abilities you don't have.\","
+                + "\"errors\":{\"abilities\":[\"The token can't have abilities you don't have.\"]}}"));
+        ValidationException invalid = assertThrows(ValidationException.class,
+                () -> client.team().apiTokens().update("t1", new UpdateTeamApiTokenData(null, List.of("write:team"))));
+        assertEquals(422, invalid.getStatus());
+        assertEquals(List.of("The token can't have abilities you don't have."), invalid.getErrors().get("abilities"));
+
+        server.enqueue(FakeServer.Response.json(403, "{\"error\":{\"code\":\"TOKEN_EXCEEDS_REQUESTER\",\"message\":\"This action is unauthorized.\"}}"));
+        PermissionException forbidden = assertThrows(PermissionException.class,
+                () -> client.team().apiTokens().update("t1", UpdateTeamApiTokenData.builder().name("CI").build()));
+        assertEquals(403, forbidden.getStatus());
+        assertEquals("TOKEN_EXCEEDS_REQUESTER", forbidden.getCode());
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.team().apiTokens().update("t1", UpdateTeamApiTokenData.builder().name("CI").build()));
+    }
+
+    @Test
+    void suppressesWholeDomains() {
+        server.enqueue(FakeServer.Response.json(201, "{\"message\":\"Suppressed.\",\"data\":{\"created\":[\"acme.com\"],\"skipped\":[]}}"));
+        SuppressionStoreResponse suppressed = client.suppressions().create(StoreSuppressionData.builder().domains(List.of("acme.com", "example.com"))
+                .reason(SuppressionCreateReason.of("manual")).scope(SuppressionCreateScope.of("team")).build());
+        assertTeamRequest("POST", "/v1/suppressions");
+        assertEquals("{\"reason\":\"manual\",\"scope\":\"team\",\"domains\":[\"acme.com\",\"example.com\"]}", server.last().body());
+        assertEquals(List.of("acme.com"), suppressed.data().created());
+
+        server.enqueue(FakeServer.Response.json(201, "{\"message\":\"Suppressed.\",\"data\":{\"created\":[\"acme.com\"],\"skipped\":[]}}"));
+        client.suppressions().create(StoreSuppressionData.builder().domain("acme.com")
+                .reason(SuppressionCreateReason.of("hard_bounce")).scope(SuppressionCreateScope.of("team")).build());
+        assertEquals("{\"reason\":\"hard_bounce\",\"scope\":\"team\",\"domain\":\"acme.com\"}", server.last().body());
+    }
+
+    @Test
+    void domainsCanBeOpenedToEveryProject() {
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":{\"id\":\"d1\",\"projects\":[]},\"message\":\"Domain updated.\"}"));
+        client.domains().updateProjects("d1", new UpdateDomainProjectsData(List.of()));
+        assertTeamRequest("PUT", "/v1/domains/d1/projects");
+        assertEquals("{\"project_ids\":[]}", server.last().body());
+    }
+
+    @Test
+    void messagesAndDeliveriesExposeTheirRetention() {
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"m1\",\"retained_until\":\"2026-12-26T09:00:00.000000Z\"}"));
+        assertEquals("2026-12-26T09:00:00.000000Z", client.messages().retrieve("m1").retainedUntil());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"m1\"}"));
+        assertNull(client.messages().retrieve("m1").retainedUntil());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"dl1\",\"payload_retained\":false}"));
+        assertEquals(Boolean.FALSE, client.webhooks().deliveries().retrieve("w1", "dl1").payloadRetained());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"dl1\"}"));
+        assertNull(client.webhooks().deliveries().retrieve("w1", "dl1").payloadRetained());
     }
 
     @Test
