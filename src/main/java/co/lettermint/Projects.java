@@ -18,11 +18,13 @@ public final class Projects {
     private final Transport transport;
     private final ReportForwarding reportForwarding;
     private final ProjectApiTokens apiTokens;
+    private final TrackingDomain trackingDomain;
 
     Projects(Transport transport) {
         this.transport = transport;
         this.reportForwarding = new ReportForwarding(transport);
         this.apiTokens = new ProjectApiTokens(transport);
+        this.trackingDomain = new TrackingDomain(transport);
     }
 
     /**
@@ -37,6 +39,13 @@ public final class Projects {
      */
     public ProjectApiTokens apiTokens() {
         return apiTokens;
+    }
+
+    /**
+     * @return the custom tracking domain of a project
+     */
+    public TrackingDomain trackingDomain() {
+        return trackingDomain;
     }
 
     /**

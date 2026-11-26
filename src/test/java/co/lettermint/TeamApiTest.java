@@ -46,6 +46,10 @@ import co.lettermint.types.PendingSendMailResponse;
 import co.lettermint.types.ProjectApiToken;
 import co.lettermint.types.ProjectApiTokenCreatedResponse;
 import co.lettermint.types.ProjectAccessScope;
+import co.lettermint.types.ProjectData;
+import co.lettermint.types.ProjectTrackingDomain;
+import co.lettermint.types.ProjectTrackingDomainMutationResponse;
+import co.lettermint.types.ProjectTrackingDomainVerificationResponse;
 import co.lettermint.types.RbacPermission;
 import co.lettermint.types.ReportForwardingRequest;
 import co.lettermint.types.RescheduleMessageRequest;
@@ -68,6 +72,7 @@ import co.lettermint.types.TeamInviteData;
 import co.lettermint.types.TeamRoleData;
 import co.lettermint.types.UpdateDomainProjectsData;
 import co.lettermint.types.UpdateProjectData;
+import co.lettermint.types.UpdateProjectTrackingDomainData;
 import co.lettermint.types.UpdateRouteData;
 import co.lettermint.types.UpdateTeamApiTokenData;
 import co.lettermint.types.UpdateTeamData;
@@ -85,6 +90,7 @@ import co.lettermint.types.WebhookListData;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -140,7 +146,7 @@ class TeamApiTest {
             if (key.equals("GET /ping") || key.endsWith("/html") || key.endsWith("/text") || key.endsWith("/source")) {
                 return FakeServer.Response.text(200, "text/plain", "pong");
             }
-            if (key.equals("DELETE /projects/{projectId}/report-forwarding")) {
+            if (key.equals("DELETE /projects/{projectId}/report-forwarding") || key.equals("DELETE /projects/{projectId}/tracking-domain")) {
                 return FakeServer.Response.empty(204);
             }
             Operations.Operation<?> operation = Operations.ALL.get(key);
@@ -200,6 +206,10 @@ class TeamApiTest {
                 () -> client.projects().reportForwarding().delete("p1"),
                 () -> client.projects().reportForwarding().verify("p1", new VerifyReportForwardingRequest("123456")),
                 () -> client.projects().reportForwarding().resendCode("p1"),
+                () -> client.projects().trackingDomain().retrieve("p1"),
+                () -> client.projects().trackingDomain().update("p1", new UpdateProjectTrackingDomainData("track.acme.com")),
+                () -> client.projects().trackingDomain().delete("p1"),
+                () -> client.projects().trackingDomain().verify("p1"),
                 () -> client.routes().list("p1"),
                 () -> client.routes().iterate("p1").forEach(item -> { }),
                 () -> client.routes().create("p1", StoreRouteData.builder().name("Inbound").routeType(RouteType.of("inbound")).build()),
@@ -260,14 +270,7 @@ class TeamApiTest {
         for (FakeServer.Request request : server.requests()) {
             reached.add(operationKey(request));
         }
-        Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
-        // The project tracking domain operations are added by the next PR, which removes this list.
-        expected.removeAll(Set.of(
-                "GET /projects/{projectId}/tracking-domain",
-                "PUT /projects/{projectId}/tracking-domain",
-                "DELETE /projects/{projectId}/tracking-domain",
-                "POST /projects/{projectId}/tracking-domain/verify"));
-        assertEquals(expected, reached);
+        assertEquals(new TreeSet<>(Operations.ALL.keySet()), reached);
     }
 
     @Test
@@ -1040,6 +1043,116 @@ class TeamApiTest {
 
         server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
         assertThrows(NotFoundException.class, () -> client.domains().rotateDkimKey("d1"));
+    }
+
+    private static final String TRACKING_DOMAIN = "{\"domain\":\"track.acme.com\",\"verified\":true,\"active\":true,"
+            + "\"verified_at\":\"2026-11-01T09:00:00.000000Z\",\"last_verification_at\":\"2026-11-02T09:00:00.000000Z\","
+            + "\"cname_target\":\"track.lettermint.co\"}";
+
+    @Test
+    void retrievesAndUpdatesTheTrackingDomain() {
+        server.enqueue(FakeServer.Response.json(200, TRACKING_DOMAIN));
+        ProjectTrackingDomain domain = client.projects().trackingDomain().retrieve("p 1");
+        assertTeamRequest("GET", "/v1/projects/p%201/tracking-domain");
+        assertEquals("", server.last().body());
+        assertEquals("track.acme.com", domain.domain());
+        assertTrue(domain.verified());
+        assertTrue(domain.active());
+        assertEquals("2026-11-01T09:00:00.000000Z", domain.verifiedAt());
+        assertEquals("2026-11-02T09:00:00.000000Z", domain.lastVerificationAt());
+        assertEquals("track.lettermint.co", domain.cnameTarget());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"domain\":null,\"verified\":false,\"active\":false,\"verified_at\":null,"
+                + "\"last_verification_at\":null,\"cname_target\":\"track.lettermint.co\"}"));
+        ProjectTrackingDomain none = client.projects().trackingDomain().retrieve("p1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("GET", "/v1/projects/p1/tracking-domain");
+        assertNull(none.domain());
+        assertFalse(none.active());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":" + TRACKING_DOMAIN.replace("\"verified\":true,\"active\":true", "\"verified\":false,\"active\":false")
+                + ",\"message\":\"Tracking domain updated.\"}"));
+        ProjectTrackingDomainMutationResponse updated = client.projects().trackingDomain().update("p 1", new UpdateProjectTrackingDomainData("track.acme.com"));
+        assertTeamRequest("PUT", "/v1/projects/p%201/tracking-domain");
+        assertTrue(server.last().header("content-type").startsWith("application/json"));
+        assertEquals("{\"domain\":\"track.acme.com\"}", server.last().body());
+        assertEquals("Tracking domain updated.", updated.message());
+        assertEquals("track.acme.com", updated.data().domain());
+        assertFalse(updated.data().verified());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":" + TRACKING_DOMAIN + ",\"message\":\"Tracking domain updated.\"}"));
+        client.projects().trackingDomain().update("p1", UpdateProjectTrackingDomainData.builder().domain("track.acme.com").build(),
+                RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("PUT", "/v1/projects/p1/tracking-domain");
+        assertEquals("{\"domain\":\"track.acme.com\"}", server.last().body());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"id\":\"p1\",\"tracking_domain\":" + TRACKING_DOMAIN + "}"));
+        ProjectData project = client.projects().retrieve("p1");
+        assertEquals("track.acme.com", project.trackingDomain().domain());
+    }
+
+    @Test
+    void verifiesAndDeletesTheTrackingDomain() {
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":{\"domain\":\"track.acme.com\",\"verified\":true,"
+                + "\"verified_at\":\"2026-11-01T09:00:00.000000Z\",\"expected_cname\":\"track.lettermint.co\","
+                + "\"found_cname\":\"track.lettermint.co\",\"temporary_error\":false},\"message\":\"Domain verified.\"}"));
+        ProjectTrackingDomainVerificationResponse verified = client.projects().trackingDomain().verify("p 1");
+        assertTeamRequest("POST", "/v1/projects/p%201/tracking-domain/verify");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertEquals("Domain verified.", verified.message());
+        assertTrue(verified.data().verified());
+        assertEquals("track.lettermint.co", verified.data().expectedCname());
+        assertEquals("track.lettermint.co", verified.data().foundCname());
+        assertFalse(verified.data().temporaryError());
+
+        server.enqueue(FakeServer.Response.json(200, "{\"data\":{\"domain\":\"track.acme.com\",\"verified\":true},\"message\":\"Domain verified.\"}"));
+        client.projects().trackingDomain().verify("p1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("POST", "/v1/projects/p1/tracking-domain/verify");
+
+        server.enqueue(FakeServer.Response.empty(204));
+        client.projects().trackingDomain().delete("p 1");
+        assertTeamRequest("DELETE", "/v1/projects/p%201/tracking-domain");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+
+        server.enqueue(FakeServer.Response.empty(204));
+        client.projects().trackingDomain().delete("p1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("DELETE", "/v1/projects/p1/tracking-domain");
+    }
+
+    @Test
+    void trackingDomainMethodsValidateIdsAndNeedTheTeamToken() {
+        assertThrows(LettermintConfigException.class, () -> client.projects().trackingDomain().retrieve(""));
+        assertThrows(LettermintConfigException.class, () -> client.projects().trackingDomain().update("..", new UpdateProjectTrackingDomainData("track.acme.com")));
+        assertThrows(LettermintConfigException.class, () -> client.projects().trackingDomain().delete(null));
+        assertThrows(LettermintConfigException.class, () -> client.projects().trackingDomain().verify(""));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        LettermintConfigException missing = assertThrows(LettermintConfigException.class, () -> sending.projects().trackingDomain().retrieve("p1"));
+        assertTrue(missing.getMessage().startsWith("projects.trackingDomain.retrieve needs teamToken"), missing.getMessage());
+        assertThrows(LettermintConfigException.class, () -> sending.projects().trackingDomain().delete("p1"));
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void trackingDomainErrorsMapToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(422, "{\"data\":{\"domain\":\"track.acme.com\",\"verified\":false,\"verified_at\":null,"
+                + "\"expected_cname\":\"track.lettermint.co\",\"found_cname\":\"other.example.com\",\"temporary_error\":false},"
+                + "\"message\":\"The CNAME record points to other.example.com.\"}"));
+        ValidationException failed = assertThrows(ValidationException.class, () -> client.projects().trackingDomain().verify("p1"));
+        assertEquals(422, failed.getStatus());
+        assertEquals("The CNAME record points to other.example.com.", failed.getMessage());
+        Map<String, Object> data = (Map<String, Object>) ((Map<String, Object>) failed.getBody()).get("data");
+        assertEquals("other.example.com", data.get("found_cname"));
+        assertEquals(false, data.get("temporary_error"));
+
+        server.enqueue(FakeServer.Response.json(422, "{\"message\":\"The domain is already in use.\",\"errors\":{\"domain\":[\"The domain is already in use.\"]}}"));
+        ValidationException invalid = assertThrows(ValidationException.class,
+                () -> client.projects().trackingDomain().update("p1", new UpdateProjectTrackingDomainData("track.acme.com")));
+        assertEquals(List.of("The domain is already in use."), invalid.getErrors().get("domain"));
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.projects().trackingDomain().delete("p1"));
     }
 
     @Test
