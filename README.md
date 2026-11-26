@@ -271,7 +271,7 @@ String html = lettermint.messages().html("message-id");
 
 | Accessor | Methods |
 | --- | --- |
-| `domains()` | `list`, `iterate`, `create`, `retrieve`, `delete`, `verifyDnsRecords`, `verifyDnsRecord`, `updateProjects` |
+| `domains()` | `list`, `iterate`, `create`, `retrieve`, `delete`, `verifyDnsRecords`, `verifyDnsRecord`, `updateProjects`, `startDkimUpgrade`, `cancelDkimUpgrade`, `activateDkimUpgrade`, `rotateDkimKey` |
 | `messages()` | `list`, `iterate`, `retrieve`, `events`, `iterateEvents`, `source`, `html`, `text`, `reschedule`, `cancel`, `process`, `resend` |
 | `projects()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `rotateToken` |
 | `projects().apiTokens()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `delete(projectId, tokenId)` |
@@ -288,6 +288,20 @@ String html = lettermint.messages().html("message-id");
 | (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
 
 `webhooks().deliveries().retry(webhookId, deliveryId)` sends a delivery's original payload to the webhook again now; it throws a `ConflictException` when the webhook is disabled, the delivery cannot be retried, or a retry is already in progress.
+
+`domains().startDkimUpgrade(domainId)` moves a domain with a DKIM TXT record (`legacy_txt`) to managed DKIM. The response lists two new DKIM CNAME records with verification scope `migration`; add them to your DNS. The DKIM TXT record keeps signing until the upgrade completes. When `dkimTransition().state()` is `ready_to_activate`, `activateDkimUpgrade(domainId)` starts a grace period in which both keys are published; after `dkimTransition().completesAfter()` the domain uses `managed_cname` and you can remove the TXT record. `cancelDkimUpgrade(domainId)` cancels an upgrade before its grace period starts. `rotateDkimKey(domainId)` replaces the key of a managed DKIM domain early, without DNS changes. Each returns the domain, and a domain in the wrong state throws a `ValidationException`:
+
+```java
+DomainMutationResponse upgrade = lettermint.domains().startDkimUpgrade(domainId);
+upgrade.data().dnsRecords().stream()
+    .filter(record -> DnsVerificationScope.MIGRATION.equals(record.verificationScope()))
+    .forEach(record -> System.out.println(record.fqdn() + " CNAME " + record.content()));
+
+DomainData domain = lettermint.domains().retrieve(domainId);
+if (domain.dkimTransition() != null && DkimTransitionPhase.READY_TO_ACTIVATE.equals(domain.dkimTransition().state())) {
+    lettermint.domains().activateDkimUpgrade(domainId);
+}
+```
 
 `projects().apiTokens().create(projectId, ...)` creates a project API token. The token is only returned once: use it to send through the API, or as the SMTP password when SMTP is enabled for the project (`smtp()` then holds the host, ports and username). `list` and `iterate` return the tokens without their values, and `delete` makes a token stop working immediately:
 

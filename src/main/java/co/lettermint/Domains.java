@@ -224,6 +224,120 @@ public final class Domains {
         return transport.call(Operations.UPDATE_DOMAIN_PROJECTS, Transport.call("domains.updateProjects").path(domainId).body(body).options(options));
     }
 
+    /**
+     * Starts the upgrade of a {@code legacy_txt} domain to managed DKIM (HTTP 202). The response
+     * lists two new DKIM CNAME records with verification scope {@code migration}; add them to your
+     * DNS. The current DKIM TXT record keeps signing until the upgrade completes. Calling it again
+     * returns the upgrade that is in progress, and a domain that already uses managed DKIM returns
+     * HTTP 200 without changes. When {@code dkim_transition.state} is {@code ready_to_activate},
+     * call {@link #activateDkimUpgrade(String)}.
+     *
+     * @param domainId the domain id
+     * @return the response
+     */
+    public DomainMutationResponse startDkimUpgrade(String domainId) {
+        return startDkimUpgrade(domainId, null);
+    }
+
+    /**
+     * Starts the upgrade of a {@code legacy_txt} domain to managed DKIM (HTTP 202). The response
+     * lists two new DKIM CNAME records with verification scope {@code migration}; add them to your
+     * DNS. The current DKIM TXT record keeps signing until the upgrade completes. Calling it again
+     * returns the upgrade that is in progress, and a domain that already uses managed DKIM returns
+     * HTTP 200 without changes. When {@code dkim_transition.state} is {@code ready_to_activate},
+     * call {@link #activateDkimUpgrade(String)}.
+     *
+     * @param domainId the domain id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public DomainMutationResponse startDkimUpgrade(String domainId, RequestOptions options) {
+        return transport.call(Operations.START_DOMAIN_DKIM_UPGRADE, Transport.call("domains.startDkimUpgrade").path(domainId).options(options));
+    }
+
+    /**
+     * Cancels the managed DKIM upgrade and removes its DKIM CNAME records. The domain keeps its DKIM
+     * TXT record. An upgrade can't be cancelled after its grace period started. Without an upgrade
+     * in progress nothing changes, and a key rotation is never cancelled.
+     *
+     * @param domainId the domain id
+     * @return the response
+     */
+    public DomainMutationResponse cancelDkimUpgrade(String domainId) {
+        return cancelDkimUpgrade(domainId, null);
+    }
+
+    /**
+     * Cancels the managed DKIM upgrade and removes its DKIM CNAME records. The domain keeps its DKIM
+     * TXT record. An upgrade can't be cancelled after its grace period started. Without an upgrade
+     * in progress nothing changes, and a key rotation is never cancelled.
+     *
+     * @param domainId the domain id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public DomainMutationResponse cancelDkimUpgrade(String domainId, RequestOptions options) {
+        return transport.call(Operations.CANCEL_DOMAIN_DKIM_UPGRADE, Transport.call("domains.cancelDkimUpgrade").path(domainId).options(options));
+    }
+
+    /**
+     * Activates the managed DKIM upgrade. Lettermint checks both DKIM CNAME records again, then
+     * starts a grace period in which both keys are published. The upgrade completes at
+     * {@code dkim_transition.completes_after}; {@code dkim_mode} then changes to
+     * {@code managed_cname} and you can remove the old DKIM TXT record. Calling it again during the
+     * grace period, or after the upgrade completed, changes nothing.
+     *
+     * @param domainId the domain id
+     * @return the response
+     */
+    public DomainMutationResponse activateDkimUpgrade(String domainId) {
+        return activateDkimUpgrade(domainId, null);
+    }
+
+    /**
+     * Activates the managed DKIM upgrade. Lettermint checks both DKIM CNAME records again, then
+     * starts a grace period in which both keys are published. The upgrade completes at
+     * {@code dkim_transition.completes_after}; {@code dkim_mode} then changes to
+     * {@code managed_cname} and you can remove the old DKIM TXT record. Calling it again during the
+     * grace period, or after the upgrade completed, changes nothing.
+     *
+     * @param domainId the domain id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public DomainMutationResponse activateDkimUpgrade(String domainId, RequestOptions options) {
+        return transport.call(Operations.ACTIVATE_DOMAIN_DKIM_UPGRADE, Transport.call("domains.activateDkimUpgrade").path(domainId).options(options));
+    }
+
+    /**
+     * Starts a DKIM key rotation for a domain with managed DKIM (HTTP 202). The DKIM CNAME records
+     * stay the same, so no DNS change is needed: Lettermint publishes the new key and keeps both keys
+     * published during a grace period. Lettermint also rotates keys on a schedule, so you only need
+     * this to replace a key early. Calling it again during a rotation returns the rotation that is
+     * in progress.
+     *
+     * @param domainId the domain id
+     * @return the response
+     */
+    public DomainMutationResponse rotateDkimKey(String domainId) {
+        return rotateDkimKey(domainId, null);
+    }
+
+    /**
+     * Starts a DKIM key rotation for a domain with managed DKIM (HTTP 202). The DKIM CNAME records
+     * stay the same, so no DNS change is needed: Lettermint publishes the new key and keeps both keys
+     * published during a grace period. Lettermint also rotates keys on a schedule, so you only need
+     * this to replace a key early. Calling it again during a rotation returns the rotation that is
+     * in progress.
+     *
+     * @param domainId the domain id
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public DomainMutationResponse rotateDkimKey(String domainId, RequestOptions options) {
+        return transport.call(Operations.ROTATE_DOMAIN_DKIM_KEY, Transport.call("domains.rotateDkimKey").path(domainId).options(options));
+    }
+
     @Override
     public String toString() {
         return "Domains{}";

@@ -22,6 +22,11 @@ import co.lettermint.types.CreateTeamInviteData;
 import co.lettermint.types.CreateTeamInviteDataProjectAccess;
 import co.lettermint.types.CreateTeamRoleData;
 import co.lettermint.types.DeleteTeamRoleQuery;
+import co.lettermint.types.DkimMode;
+import co.lettermint.types.DkimTransitionPhase;
+import co.lettermint.types.DkimTransitionType;
+import co.lettermint.types.DnsVerificationScope;
+import co.lettermint.types.DomainMutationResponse;
 import co.lettermint.types.CursorPage;
 import co.lettermint.types.DomainListData;
 import co.lettermint.types.DuplicateTeamRoleData;
@@ -163,6 +168,10 @@ class TeamApiTest {
                 () -> client.domains().verifyDnsRecords("d1"),
                 () -> client.domains().verifyDnsRecord("d1", "r1"),
                 () -> client.domains().updateProjects("d1", new UpdateDomainProjectsData(List.of("p1"))),
+                () -> client.domains().startDkimUpgrade("d1"),
+                () -> client.domains().cancelDkimUpgrade("d1"),
+                () -> client.domains().activateDkimUpgrade("d1"),
+                () -> client.domains().rotateDkimKey("d1"),
                 () -> client.messages().list(),
                 () -> client.messages().iterate().forEach(item -> { }),
                 () -> client.messages().retrieve("m1"),
@@ -252,13 +261,8 @@ class TeamApiTest {
             reached.add(operationKey(request));
         }
         Set<String> expected = new TreeSet<>(Operations.ALL.keySet());
-        // The DKIM upgrade and rotation operations and the project tracking domain operations are
-        // added by the next PRs, which remove this list.
+        // The project tracking domain operations are added by the next PR, which removes this list.
         expected.removeAll(Set.of(
-                "POST /domains/{domainId}/dkim/upgrade",
-                "DELETE /domains/{domainId}/dkim/upgrade",
-                "POST /domains/{domainId}/dkim/upgrade/activate",
-                "POST /domains/{domainId}/dkim/rotate",
                 "GET /projects/{projectId}/tracking-domain",
                 "PUT /projects/{projectId}/tracking-domain",
                 "DELETE /projects/{projectId}/tracking-domain",
@@ -940,6 +944,102 @@ class TeamApiTest {
 
         server.enqueue(FakeServer.Response.json(200, "{\"id\":\"dl1\"}"));
         assertNull(client.webhooks().deliveries().retrieve("w1", "dl1").payloadRetained());
+    }
+
+    private static String dkimDomain(String transition) {
+        return "{\"data\":{\"id\":\"d 1\",\"domain\":\"acme.com\",\"dkim_mode\":\"legacy_txt\",\"rotation_ready\":false,"
+                + "\"dkim_transition\":" + transition + ",\"status_changed_at\":null,\"dns_records\":[{\"id\":\"r1\",\"type\":\"CNAME\","
+                + "\"hostname\":\"lm1._domainkey\",\"verification_scope\":\"migration\"}],\"created_at\":\"2026-11-01T09:00:00.000000Z\"},"
+                + "\"message\":\"DKIM upgrade started.\"}";
+    }
+
+    @Test
+    void startsAndActivatesADkimUpgrade() {
+        server.enqueue(FakeServer.Response.json(202, dkimDomain("{\"type\":\"legacy_upgrade\",\"state\":\"awaiting_dns\",\"completes_after\":null}")));
+        DomainMutationResponse started = client.domains().startDkimUpgrade("d 1");
+        assertTeamRequest("POST", "/v1/domains/d%201/dkim/upgrade");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertEquals("DKIM upgrade started.", started.message());
+        assertEquals(DkimMode.LEGACY_TXT, started.data().dkimMode());
+        assertEquals(DkimTransitionType.LEGACY_UPGRADE, started.data().dkimTransition().type());
+        assertEquals(DkimTransitionPhase.AWAITING_DNS, started.data().dkimTransition().state());
+        assertNull(started.data().dkimTransition().completesAfter());
+        assertEquals(DnsVerificationScope.MIGRATION, started.data().dnsRecords().get(0).verificationScope());
+
+        server.enqueue(FakeServer.Response.json(200, dkimDomain("null").replace("legacy_txt", "managed_cname")));
+        DomainMutationResponse already = client.domains().startDkimUpgrade("d1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("POST", "/v1/domains/d1/dkim/upgrade");
+        assertEquals(DkimMode.MANAGED_CNAME, already.data().dkimMode());
+        assertNull(already.data().dkimTransition());
+
+        server.enqueue(FakeServer.Response.json(200, dkimDomain("{\"type\":\"legacy_upgrade\",\"state\":\"grace_period\","
+                + "\"completes_after\":\"2026-11-08T09:00:00.000000Z\"}")));
+        DomainMutationResponse activated = client.domains().activateDkimUpgrade("d 1");
+        assertTeamRequest("POST", "/v1/domains/d%201/dkim/upgrade/activate");
+        assertEquals("", server.last().body());
+        assertEquals(DkimTransitionPhase.GRACE_PERIOD, activated.data().dkimTransition().state());
+        assertEquals("2026-11-08T09:00:00.000000Z", activated.data().dkimTransition().completesAfter());
+
+        server.enqueue(FakeServer.Response.json(200, dkimDomain("null")));
+        client.domains().activateDkimUpgrade("d1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("POST", "/v1/domains/d1/dkim/upgrade/activate");
+    }
+
+    @Test
+    void cancelsADkimUpgradeAndRotatesTheKey() {
+        server.enqueue(FakeServer.Response.json(200, dkimDomain("null")));
+        DomainMutationResponse cancelled = client.domains().cancelDkimUpgrade("d 1");
+        assertTeamRequest("DELETE", "/v1/domains/d%201/dkim/upgrade");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertNull(cancelled.data().dkimTransition());
+
+        server.enqueue(FakeServer.Response.json(200, dkimDomain("null")));
+        client.domains().cancelDkimUpgrade("d1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("DELETE", "/v1/domains/d1/dkim/upgrade");
+
+        server.enqueue(FakeServer.Response.json(202, dkimDomain("{\"type\":\"rotation\",\"state\":\"preparing\",\"completes_after\":null}")
+                .replace("legacy_txt", "managed_cname")));
+        DomainMutationResponse rotating = client.domains().rotateDkimKey("d 1");
+        assertTeamRequest("POST", "/v1/domains/d%201/dkim/rotate");
+        assertEquals("", server.last().body());
+        assertNull(server.last().header("content-type"));
+        assertEquals(DkimTransitionType.ROTATION, rotating.data().dkimTransition().type());
+        assertEquals(DkimTransitionPhase.PREPARING, rotating.data().dkimTransition().state());
+
+        server.enqueue(FakeServer.Response.json(202, dkimDomain("null")));
+        client.domains().rotateDkimKey("d1", RequestOptions.timeout(Duration.ofSeconds(5)));
+        assertTeamRequest("POST", "/v1/domains/d1/dkim/rotate");
+    }
+
+    @Test
+    void dkimMethodsValidateIdsAndNeedTheTeamToken() {
+        assertThrows(LettermintConfigException.class, () -> client.domains().startDkimUpgrade(""));
+        assertThrows(LettermintConfigException.class, () -> client.domains().cancelDkimUpgrade(".."));
+        assertThrows(LettermintConfigException.class, () -> client.domains().activateDkimUpgrade(null));
+        assertThrows(LettermintConfigException.class, () -> client.domains().rotateDkimKey(""));
+        Lettermint sending = Lettermint.builder().sendingToken(ClientTest.SENDING).baseUrl(server.baseUrl()).build();
+        LettermintConfigException missing = assertThrows(LettermintConfigException.class, () -> sending.domains().rotateDkimKey("d1"));
+        assertTrue(missing.getMessage().startsWith("domains.rotateDkimKey needs teamToken"), missing.getMessage());
+        assertThrows(LettermintConfigException.class, () -> sending.domains().startDkimUpgrade("d1"));
+        assertTrue(server.requests().isEmpty());
+    }
+
+    @Test
+    void dkimErrorsMapToApiExceptions() {
+        server.enqueue(FakeServer.Response.json(422, "{\"error\":{\"code\":\"DKIM_UPGRADE_NOT_READY\",\"message\":\"The DKIM records are not verified yet.\"}}"));
+        ValidationException notReady = assertThrows(ValidationException.class, () -> client.domains().activateDkimUpgrade("d1"));
+        assertEquals(422, notReady.getStatus());
+        assertEquals("DKIM_UPGRADE_NOT_READY", notReady.getCode());
+        assertEquals("The DKIM records are not verified yet.", notReady.getMessage());
+
+        server.enqueue(FakeServer.Response.json(422, "{\"error\":{\"code\":\"DKIM_UPGRADE_IN_GRACE_PERIOD\",\"message\":\"The upgrade can no longer be cancelled.\"}}"));
+        ValidationException inGracePeriod = assertThrows(ValidationException.class, () -> client.domains().cancelDkimUpgrade("d1"));
+        assertEquals("DKIM_UPGRADE_IN_GRACE_PERIOD", inGracePeriod.getCode());
+
+        server.enqueue(FakeServer.Response.json(404, "{\"message\":\"Not found\"}"));
+        assertThrows(NotFoundException.class, () -> client.domains().rotateDkimKey("d1"));
     }
 
     @Test
