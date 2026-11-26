@@ -282,7 +282,7 @@ String html = lettermint.messages().html("message-id");
 | `team()` | `retrieve`, `update`, `usage`, `roles`, `retrieveRole`, `createRole`, `updateRole`, `deleteRole`, `duplicateRole` |
 | `team().members()` | `list`, `iterate`, `retrieve`, `updateAssignment`, `remove` |
 | `team().invites()` | `list`, `iterate`, `retrieve`, `create`, `update`, `revoke` |
-| `team().apiTokens()` | `list`, `iterate`, `create`, `delete` |
+| `team().apiTokens()` | `list`, `iterate`, `create`, `update`, `delete` |
 | `webhooks()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `test`, `regenerateSecret` |
 | `webhooks().deliveries()` | `list(webhookId)`, `iterate(webhookId)`, `retrieve(webhookId, deliveryId)`, `retry(webhookId, deliveryId)` |
 | (root) | `ping`, `analytics`, `analyticsPages`, `blockedFileTypes` |
@@ -322,7 +322,7 @@ lettermint.team().duplicateRole(role.id(), DuplicateTeamRoleData.builder().name(
 lettermint.team().deleteRole(role.id(), new DeleteTeamRoleQuery(replacementRoleId));
 ```
 
-`team().apiTokens().create(...)` creates a team API token. The new token can only have abilities that the requesting token has. It copies the requesting token's IP allowlist, and it can't outlive the requesting token (`expiresAt` defaults to the requesting token's expiry). The token is only returned once. `delete(tokenId)` makes a token stop working immediately; a token can only delete tokens whose abilities it also has:
+`team().apiTokens().create(...)` creates a team API token. The new token can only have abilities that the requesting token has. It copies the requesting token's IP allowlist, and it can't outlive the requesting token (`expiresAt` defaults to the requesting token's expiry). The token is only returned once. `update(tokenId, ...)` changes a token's name or replaces its full list of abilities; each ability must also be held by the requesting token. `delete(tokenId)` makes a token stop working immediately; a token can only update and delete tokens whose abilities it also has:
 
 ```java
 TeamApiTokenCreatedResponse created = lettermint.team().apiTokens().create(StoreTeamApiTokenData.builder()
@@ -335,6 +335,9 @@ String token = created.data().token(); // store it now; it is only returned once
 for (TeamApiToken apiToken : lettermint.team().apiTokens().iterate()) {
     System.out.println(apiToken.name() + " " + apiToken.abilities());
 }
+lettermint.team().apiTokens().update(created.data().id(), UpdateTeamApiTokenData.builder()
+    .abilities(List.of("read:domains"))
+    .build());
 lettermint.team().apiTokens().delete(created.data().id());
 ```
 

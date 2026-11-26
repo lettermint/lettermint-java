@@ -77,7 +77,9 @@ public final class Suppressions {
     }
 
     /**
-     * Suppresses one or more recipients.
+     * Suppresses one or more recipients ({@code email}, {@code emails}) or whole domains
+     * ({@code domain}, {@code domains}). Domains accept the {@code manual} and {@code hard_bounce}
+     * reasons.
      *
      * @param body the request body
      * @return the response
@@ -87,7 +89,9 @@ public final class Suppressions {
     }
 
     /**
-     * Suppresses one or more recipients.
+     * Suppresses one or more recipients ({@code email}, {@code emails}) or whole domains
+     * ({@code domain}, {@code domains}). Domains accept the {@code manual} and {@code hard_bounce}
+     * reasons.
      *
      * @param body the request body
      * @param options per-call options, or null

@@ -7,6 +7,7 @@ import co.lettermint.types.Operations;
 import co.lettermint.types.StoreTeamApiTokenData;
 import co.lettermint.types.TeamApiToken;
 import co.lettermint.types.TeamApiTokenCreatedResponse;
+import co.lettermint.types.UpdateTeamApiTokenData;
 
 /** Team API tokens. Needs the team token. Thread-safe. */
 public final class TeamApiTokens {
@@ -99,6 +100,35 @@ public final class TeamApiTokens {
      */
     public TeamApiTokenCreatedResponse create(StoreTeamApiTokenData body, RequestOptions options) {
         return transport.call(Operations.CREATE_TEAM_API_TOKEN, Transport.call("team.apiTokens.create").body(body).options(options));
+    }
+
+    /**
+     * Updates a team API token: changes its name, or replaces its abilities with {@code abilities}.
+     * A token can only change tokens whose abilities it also has, and only to abilities it has. To
+     * add abilities, the token being changed must be limited to the requesting token's IP allowlist
+     * and must not expire after it. The token value is not included.
+     *
+     * @param tokenId the token id
+     * @param body the request body
+     * @return the response
+     */
+    public TeamApiToken update(String tokenId, UpdateTeamApiTokenData body) {
+        return update(tokenId, body, null);
+    }
+
+    /**
+     * Updates a team API token: changes its name, or replaces its abilities with {@code abilities}.
+     * A token can only change tokens whose abilities it also has, and only to abilities it has. To
+     * add abilities, the token being changed must be limited to the requesting token's IP allowlist
+     * and must not expire after it. The token value is not included.
+     *
+     * @param tokenId the token id
+     * @param body the request body
+     * @param options per-call options, or null
+     * @return the response
+     */
+    public TeamApiToken update(String tokenId, UpdateTeamApiTokenData body, RequestOptions options) {
+        return transport.call(Operations.UPDATE_TEAM_API_TOKEN, Transport.call("team.apiTokens.update").path(tokenId).body(body).options(options));
     }
 
     /**
