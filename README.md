@@ -276,6 +276,7 @@ String html = lettermint.messages().html("message-id");
 | `projects()` | `list`, `iterate`, `create`, `retrieve`, `update`, `delete`, `rotateToken` |
 | `projects().apiTokens()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `delete(projectId, tokenId)` |
 | `projects().reportForwarding()` | `retrieve`, `update`, `delete`, `verify`, `resendCode` |
+| `projects().trackingDomain()` | `retrieve`, `update`, `delete`, `verify` |
 | `routes()` | `list(projectId)`, `iterate(projectId)`, `create(projectId, …)`, `retrieve`, `update`, `delete`, `verifyInboundDomain` |
 | `stats()` | `retrieve` |
 | `suppressions()` | `list`, `iterate`, `create`, `delete` |
@@ -314,6 +315,20 @@ for (ProjectApiToken apiToken : lettermint.projects().apiTokens().iterate(projec
     System.out.println(apiToken.name() + " " + apiToken.lastUsedAt());
 }
 lettermint.projects().apiTokens().delete(projectId, created.data().id());
+```
+
+`projects().trackingDomain().update(projectId, ...)` sets the domain that a project's open and click tracking links use; it needs a plan with custom tracking domains. Add a CNAME record for the domain that points to `cnameTarget()`. Lettermint checks it in the background, and `verify(projectId)` checks it now; until it is verified, tracking links keep using the Lettermint tracking domain. When the check fails, `verify` throws a `ValidationException` whose `getBody()` holds the same outcome (`found_cname`, and `temporary_error` when the DNS lookup failed). `delete(projectId)` goes back to the Lettermint tracking domain:
+
+```java
+ProjectTrackingDomainMutationResponse updated = lettermint.projects().trackingDomain().update(projectId,
+    new UpdateProjectTrackingDomainData("track.acme.com"));
+System.out.println("CNAME track.acme.com -> " + updated.data().cnameTarget());
+
+try {
+    lettermint.projects().trackingDomain().verify(projectId);
+} catch (ValidationException e) {
+    System.out.println(e.getMessage()); // what to fix in DNS
+}
 ```
 
 `team().invites().create(...)` invites a person and sends the invitation email; the team needs a free seat, and the Owner role can't be assigned. `update(inviteId, ...)` replaces a pending invitation's email, role and project access, and sends a new email only when the address changes:
